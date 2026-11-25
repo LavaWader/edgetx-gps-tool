@@ -21,7 +21,7 @@ local M = {}
 local CHAR_W, SMALL_W, LINE, SMALL_H, GAP, HEAD = 6, 4, 8, 6, 2, 10
 M.CHAR_W, M.SMALL_W = CHAR_W, SMALL_W
 
-local STATUS = {pending = "...", reading = "reading...", none = "No location", error = "Can't read"}
+local STATUS = { pending = "...", reading = "reading...", none = "No location", error = "Can't read" }
 
 local coords = require("gps.core.fix").text
 local names = require("gps.core.logname").lines
@@ -53,14 +53,14 @@ end
 -- the second line.
 local function row_lines(s, i, chars)
   if i > #s.entries then
-    if s.effect then return {"Listing logs..."} end
-    return {string.format("Show %d last logs", s.ctx.cfg.max_files)}
+    if s.effect then return { "Listing logs..." } end
+    return { string.format("Show %d last logs", s.ctx.cfg.max_files) }
   end
   local e = s.entries[i]
   if e.kind == "telemetry" then
-    if s.telem_wait then return {"reading..."} end
-    if s.telem then return {coords(s.telem)} end
-    return {"no GPS fix"}
+    if s.telem_wait then return { "reading..." } end
+    if s.telem then return { coords(s.telem) } end
+    return { "no GPS fix" }
   end
   local first, second = names(e.name)
   first = string.format("%d. %s", i - 1, first)
@@ -70,7 +70,7 @@ local function row_lines(s, i, chars)
   end
   local line = STATUS[e.status]
   if e.status == "found" then line = coords(e.fix) end
-  return {first, " " .. second, line}, 2 -- @mutant small_name: line}, 2 => line}, 0
+  return { first, " " .. second, line }, 2 -- @mutant small_name: line }, 2 => line }, 0
 end
 
 -- Scrolled to the highest place a heading, the warning or a row starts that
@@ -91,14 +91,14 @@ function M.ops(s)
     local n = chars
     if small then n = small_chars end
     if #str > n then str = string.sub(str, 1, n) end
-    out[#out + 1] = {op = "text", x = 0, y = y, s = str, inv = inv, small = small}
+    out[#out + 1] = { op = "text", x = 0, y = y, s = str, inv = inv, small = small }
   end
   local off = offset(s, h)
   local function heading(y, str)
     y = y - off
     if y >= 0 and y + LINE + 1 <= h then
       text(y, str, false, false)
-      out[#out + 1] = {op = "fill", x = 0, y = y + LINE, w = w, h = 1}
+      out[#out + 1] = { op = "fill", x = 0, y = y + LINE, w = w, h = 1 }
     end
   end
   -- Only rows on screen get their text made (row false: the lines given).
@@ -108,7 +108,7 @@ function M.ops(s)
     if y < 0 or y + SMALL_H > h then return end
     local sel, small = i == s.sel, 0
     if i then lines, small = row_lines(s, i, small_chars) end
-    if sel then out[#out + 1] = {op = "fill", x = 0, y = y, w = w, h = bh} end
+    if sel then out[#out + 1] = { op = "fill", x = 0, y = y, w = w, h = bh } end
     for k = 1, #lines do
       local sm, th = k <= (small or 0), LINE
       if sm then th = SMALL_H end
@@ -118,7 +118,7 @@ function M.ops(s)
     end
   end
   heading(0, "Telemetry")
-  local clock = s.clock_year and {string.format("Warning. Year is %d", s.clock_year), " RTC battery is low"}
+  local clock = s.clock_year and { string.format("Warning. Year is %d", s.clock_year), " RTC battery is low" }
   local rows = app.rows(s)
   for i = 1, rows do
     if i == 2 then heading(2 * HEAD, "Logs") end
@@ -130,7 +130,7 @@ function M.ops(s)
   if s.log_note then
     local y = first_row(s)
     if rows > 1 then y = row_y(s, rows + 1) end
-    block(y, 2 * LINE, false, {s.log_note[1], " " .. s.log_note[2]})
+    block(y, 2 * LINE, false, { s.log_note[1], " " .. s.log_note[2] })
   end
   return out
 end

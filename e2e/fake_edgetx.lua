@@ -4,7 +4,7 @@
 -- fail on the radio if the real API behaves differently.
 local M = {}
 
-local KEYS = {enter = 101, exit = 102, next = 103, prev = 104}
+local KEYS = { enter = 101, exit = 102, next = 103, prev = 104 }
 
 -- path: the tool, .../SCRIPTS/TOOLS/<name>.lua; its SCRIPTS folder is served
 -- as /SCRIPTS. opts: gps = {lat, lon} or nil, logs_dir = local folder served
@@ -14,11 +14,11 @@ function M.load(path, opts)
   local W, H = opts.w or 128, opts.h or 64
   local fb, texts = {}, {}
   local real_io = io
-  local env = setmetatable({}, {__index = _G})
-  local radio = {gps = opts.gps, fb = fb, texts = texts, w = W, h = H, loads = {}, sd_calls = 0}
+  local env = setmetatable({}, { __index = _G })
+  local radio = { gps = opts.gps, fb = fb, texts = texts, w = W, h = H, loads = {}, sd_calls = 0 }
   -- Each part runs in its own environment table, held weakly: while the
   -- part's functions are alive, so is its table.
-  local alive = setmetatable({}, {__mode = "k"})
+  local alive = setmetatable({}, { __mode = "k" })
   -- Work done inside the fake API is native code on a radio: don't count it.
   local native = 0
   local function api(f)
@@ -47,7 +47,7 @@ function M.load(path, opts)
       for i = 1, W * H do fb[i] = false end
       for i = #texts, 1, -1 do texts[i] = nil end
     end),
-    drawText = api(function(x, y, s, flags) texts[#texts + 1] = {x = x, y = y, s = s, flags = flags or 0} end),
+    drawText = api(function(x, y, s, flags) texts[#texts + 1] = { x = x, y = y, s = s, flags = flags or 0 } end),
     drawFilledRectangle = api(fill),
     drawRectangle = function() end,
   }
@@ -55,7 +55,7 @@ function M.load(path, opts)
   env.EVT_VIRTUAL_ENTER, env.EVT_VIRTUAL_EXIT = KEYS.enter, KEYS.exit
   env.EVT_VIRTUAL_NEXT, env.EVT_VIRTUAL_PREV = KEYS.next, KEYS.prev
   env.getFieldInfo = function(name)
-    if name == "GPS" then return {id = 42} end
+    if name == "GPS" then return { id = 42 } end
     return nil
   end
   -- 10 ms steps; each run() call is taken to be 50 ms after the last
@@ -63,10 +63,10 @@ function M.load(path, opts)
   env.getTime = function() return radio.time end
   -- opts.year = 2000: the clock reset, as when its battery is flat
   env.getDateTime = function()
-    return {year = opts.year or 2026, mon = 11, day = 25, hour = 18, min = 0, sec = 0}
+    return { year = opts.year or 2026, mon = 11, day = 25, hour = 18, min = 0, sec = 0 }
   end
   env.getValue = function(id)
-    if id == 42 and radio.gps then return {lat = radio.gps.lat, lon = radio.gps.lon} end
+    if id == 42 and radio.gps then return { lat = radio.gps.lat, lon = radio.gps.lon } end
     return 0
   end
 
@@ -75,6 +75,7 @@ function M.load(path, opts)
     if opts.logs_dir and string.sub(p, 1, 6) == "/LOGS/" then return opts.logs_dir .. "/" .. string.sub(p, 7) end
     return nil
   end
+
   -- opts.firmware = "2.8.4": no dir() and no fstat(), as on that version.
   env.getVersion = function() return opts.firmware or "2.10.0" end
   -- dir() is native on the radio: the folder is read here, before the heap
@@ -89,7 +90,9 @@ function M.load(path, opts)
     radio.sd_calls = radio.sd_calls + 1
     if p ~= "/LOGS" or not opts.logs_dir then error("no such folder") end
     local i = 0
-    return api(function() i = i + 1; return listing[i] end)
+    return api(function()
+      i = i + 1; return listing[i]
+    end)
   end)
   env.fstat = api(function(p)
     radio.sd_calls = radio.sd_calls + 1
@@ -98,7 +101,7 @@ function M.load(path, opts)
     if not f then return nil end
     local size = f:seek("end")
     f:close()
-    return {size = size}
+    return { size = size }
   end)
   if opts.firmware and opts.firmware < "2.9" then env.dir, env.fstat = nil, nil end
   -- EdgeTX's io: io.read(file, length), io.seek(file, offset).
@@ -109,7 +112,9 @@ function M.load(path, opts)
       return lp and real_io.open(lp, "rb")
     end,
     read = function(f, n) return f:read(n) or "" end,
-    seek = function(f, off) f:seek("set", off); return 0 end,
+    seek = function(f, off)
+      f:seek("set", off); return 0
+    end,
     close = function(f) f:close() end,
   }
 
@@ -128,7 +133,7 @@ function M.load(path, opts)
   env.loadScript = api(function(p)
     if string.sub(p, 1, 9) ~= "/SCRIPTS/" then return nil, "not under /SCRIPTS: " .. p end
     radio.loads[#radio.loads + 1] = p
-    local penv = setmetatable({}, {__index = env})
+    local penv = setmetatable({}, { __index = env })
     alive[penv] = p
     return stripped(scripts .. "/" .. string.sub(p, 10), "=" .. p, penv)
   end)
@@ -176,6 +181,7 @@ function M.load(path, opts)
   end
 
   function radio.init() return measured(tool.init, "init") end
+
   function radio.run(key)
     radio.time = radio.time + 5
     return measured(tool.run, key or "tick", KEYS[key] or 0)

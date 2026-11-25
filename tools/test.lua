@@ -16,10 +16,15 @@ local root, e2e = ".", false
 local seed = tonumber(os.getenv("SEED") or "") or 20261124
 local i = 1
 while i <= #arg do
-  if arg[i] == "--root" then root = arg[i + 1]; i = i + 1
-  elseif arg[i] == "--e2e" then e2e = true
-  elseif arg[i] == "--seed" then seed = tonumber(arg[i + 1]); i = i + 1
-  else error("unknown argument " .. arg[i]) end
+  if arg[i] == "--root" then
+    root = arg[i + 1]; i = i + 1
+  elseif arg[i] == "--e2e" then
+    e2e = true
+  elseif arg[i] == "--seed" then
+    seed = tonumber(arg[i + 1]); i = i + 1
+  else
+    error("unknown argument " .. arg[i])
+  end
   i = i + 1
 end
 
@@ -43,11 +48,18 @@ local function new_rng(s)
   s = s % 2147483647
   if s <= 0 then s = s + 2147483646 end
   local r = {}
-  function r.next() s = (s * 48271) % 2147483647; return s end
+  function r.next()
+    s = (s * 48271) % 2147483647; return s
+  end
+
   function r.int(lo, hi) return lo + r.next() % (hi - lo + 1) end
+
   function r.float(lo, hi) return lo + (hi - lo) * (r.next() - 1) / 2147483645 end
+
   function r.bool() return r.next() % 2 == 0 end
+
   function r.pick(list) return list[r.int(1, #list)] end
+
   return r
 end
 
@@ -59,7 +71,9 @@ local function show(v, depth)
   local parts, n = {}, 0
   for k, x in pairs(v) do
     n = n + 1
-    if n > 16 then parts[#parts + 1] = "..."; break end
+    if n > 16 then
+      parts[#parts + 1] = "..."; break
+    end
     parts[#parts + 1] = tostring(k) .. "=" .. show(x, depth + 1)
   end
   return "{" .. table.concat(parts, ", ") .. "}"
@@ -76,15 +90,17 @@ end
 local function make_t(name)
   local h = 0
   for k = 1, #name do h = (h * 31 + name:byte(k)) % 2147483647 end
-  local t = {root = root, rng = new_rng(seed + h)}
+  local t = { root = root, rng = new_rng(seed + h) }
   function t.ok(cond, msg)
     if not cond then error(msg or "expected a true value", 2) end
   end
+
   function t.eq(actual, expected, msg)
     if not deep_eq(actual, expected) then
       error((msg and (msg .. ": ") or "") .. "expected " .. show(expected) .. ", got " .. show(actual), 2)
     end
   end
+
   function t.forall(n, gen, check)
     for k = 1, n do
       local case = gen(t.rng)
@@ -94,6 +110,7 @@ local function make_t(name)
       end
     end
   end
+
   return t
 end
 
@@ -104,7 +121,9 @@ for line in p:lines() do files[#files + 1] = line end
 p:close()
 
 local pass, fail = 0, 0
-if #files == 0 then print("FAIL no test files found under " .. dir); fail = 1 end
+if #files == 0 then
+  print("FAIL no test files found under " .. dir); fail = 1
+end
 for _, f in ipairs(files) do
   local short = (f:gsub("^.*/src/", ""))
   local ok, tests = pcall(dofile, f)
@@ -115,8 +134,11 @@ for _, f in ipairs(files) do
     for _, tc in ipairs(tests) do
       local name = short .. " :: " .. tc[1]
       local ok2, err = pcall(tc[2], make_t(name))
-      if ok2 then pass = pass + 1
-      else fail = fail + 1; print("FAIL " .. name .. "\n    " .. tostring(err)) end
+      if ok2 then
+        pass = pass + 1
+      else
+        fail = fail + 1; print("FAIL " .. name .. "\n    " .. tostring(err))
+      end
     end
   end
 end

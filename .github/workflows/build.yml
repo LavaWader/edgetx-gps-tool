@@ -1,5 +1,5 @@
-# Builds the tool and runs every check (lint, unit tests on Lua 5.4 and 5.2,
-# the end-to-end tests on the minified build, mutation testing). A pushed tag
+# Builds the tool and runs every check (formatting, lint, unit tests on Lua 5.4
+# and 5.2, the end-to-end tests on the minified build, mutation testing). A pushed tag
 # v* also publishes a release with the zip to unpack onto the SD card.
 name: build
 
@@ -28,8 +28,21 @@ jobs:
           sudo apt-get install -y lua5.4 lua5.2 zip
           npm install -g luamin@1.0.4
 
+      # The formatter is lua-language-server's (the editor's): the same version
+      # as on the development machine, or the two may format differently.
+      - name: Install lua-language-server
+        run: |
+          mkdir -p "$RUNNER_TEMP/luals"
+          curl -sfL https://github.com/LuaLS/lua-language-server/releases/download/3.19.1/lua-language-server-3.19.1-linux-x64.tar.gz \
+            | tar xz -C "$RUNNER_TEMP/luals"
+          echo "LUALS=$RUNNER_TEMP/luals/bin/lua-language-server" >> "$GITHUB_ENV"
+
+      # Fails on unformatted code instead of formatting it, as `make` would.
+      - name: Formatting
+        run: make format-check
+
       - name: Build and check
-        run: make
+        run: make check
 
       - name: Mutation testing
         run: make mutate

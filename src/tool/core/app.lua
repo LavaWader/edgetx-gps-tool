@@ -63,31 +63,37 @@ function M.next_read(s)
     if e.status == "pending" then
       local path = s.ctx.cfg.log_dir .. "/" .. e.name
       return with(s, {
-        entries = M.set(s, i, with(e, {status = "reading"})), reading = i, path = path,
-        effect = {kind = "open", path = path, head = s.ctx.cfg.header_max},
+        entries = M.set(s, i, with(e, { status = "reading" })),
+        reading = i,
+        path = path,
+        effect = { kind = "open", path = path, head = s.ctx.cfg.header_max },
       })
     end
   end
-  return with(s, {effect = false})
+  return with(s, { effect = false })
 end
 
 -- Read log i again (ENTER on it), unless it's waiting or being read already.
 local function reload(s, i)
   local e = s.entries[i]
   if e.status == "reading" or e.status == "pending" then return s end -- @mutant reload_busy: e.status == "reading" or => false and
-  return M.next_read(with(s, {entries = M.set(s, i, with(e, {status = "pending", fix = false}))}))
+  return M.next_read(with(s, { entries = M.set(s, i, with(e, { status = "pending", fix = false })) }))
 end
 
 function M.init(cfg, w, h, year)
   return {
-    ctx = {cfg = cfg, w = w, h = h},
+    ctx = { cfg = cfg, w = w, h = h },
     clock_year = (year or 3000) <= 2005 and year, -- @mutant clock_year: <= 2005 => < 2005
-    sel = 1, telem = false,
-    telem_wait = false,                -- after ENTER on telemetry: show it again from this time
-    files = false,                     -- log file names, newest first, once listed
-    log_note = false,                  -- why there are no log entries: {title, line}
-    entries = {{kind = "telemetry"}},  -- then one {kind = "log", ...} per file
-    reading = false, path = false, scan = false, cols = false,
+    sel = 1,
+    telem = false,
+    telem_wait = false,                   -- after ENTER on telemetry: show it again from this time
+    files = false,                        -- log file names, newest first, once listed
+    log_note = false,                     -- why there are no log entries: {title, line}
+    entries = { { kind = "telemetry" } }, -- then one {kind = "log", ...} per file
+    reading = false,
+    path = false,
+    scan = false,
+    cols = false,
     quit = false,
     effect = false,
   }
@@ -101,10 +107,11 @@ end
 
 -- The log code is needed exactly while log I/O is pending.
 function M.needs_logs(s) return s.effect ~= false end
+
 -- The folder listing's code, only while it's being read.
 function M.needs_listing(s) return s.effect ~= false and s.effect.kind == "list" end
 
-local EXPECT = {list = "listed", open = "opened", read = "chunk"}
+local EXPECT = { list = "listed", open = "opened", read = "chunk" }
 
 -- The selection stops at the first and last row; it doesn't wrap around.
 local function move(i, key, n)
@@ -115,14 +122,14 @@ end
 -- ENTER reads the selected row again: telemetry, a log, or (the button)
 -- lists the folder, once.
 local function key(s, k, now)
-  if k == "next" or k == "prev" then return with(s, {sel = move(s.sel, k, M.rows(s))}) end
-  if k == "exit" then return with(s, {quit = true}) end
+  if k == "next" or k == "prev" then return with(s, { sel = move(s.sel, k, M.rows(s)) }) end
+  if k == "exit" then return with(s, { quit = true }) end
   if k ~= "enter" then return s end
-  if s.sel == 1 then return with(s, {telem = false, telem_wait = now + M.TELEM_WAIT}) end
+  if s.sel == 1 then return with(s, { telem = false, telem_wait = now + M.TELEM_WAIT }) end
   if s.sel <= #s.entries then return reload(s, s.sel) end
   if not s.effect then -- @mutant list_once: if not s.effect then => if true then
     local cfg = s.ctx.cfg
-    return with(s, {effect = {kind = "list", dir = cfg.log_dir, max = cfg.max_files, batch = cfg.list_batch}})
+    return with(s, { effect = { kind = "list", dir = cfg.log_dir, max = cfg.max_files, batch = cfg.list_batch } })
   end
   return s
 end
@@ -136,13 +143,13 @@ function M.update(s, m)
   if m.kind == "tick" then
     if s.telem_wait and m.now < s.telem_wait then return key(s, m.key, m.now) end -- @mutant telem_hold: m.now < s.telem_wait => m.now > s.telem_wait
     local t = fixes.from_telemetry(m.telem) or false
-    if s.telem_wait or not same_fix(t, s.telem) then s = with(s, {telem = t, telem_wait = false}) end
+    if s.telem_wait or not same_fix(t, s.telem) then s = with(s, { telem = t, telem_wait = false }) end
     return key(s, m.key, m.now)
   end
   if not s.effect or m.kind ~= EXPECT[s.effect.kind] then return s, "stale" end
   s = require("tool.core.reading")[m.kind](s, m)
   -- the button goes once the folder is listed
-  if s.sel > M.rows(s) then s = with(s, {sel = M.rows(s)}) end
+  if s.sel > M.rows(s) then s = with(s, { sel = M.rows(s) }) end
   return s
 end
 

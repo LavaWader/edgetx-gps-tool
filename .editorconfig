@@ -1,0 +1,13 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+
+# Lua: read by lua-language-server's formatter, in the editor and in
+# `make format` (tools/format.lua), so both format alike.
+[*.lua]
+indent_style = space
+indent_size = 2
+tab_width = 2

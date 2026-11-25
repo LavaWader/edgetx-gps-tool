@@ -4,17 +4,23 @@ local fix = require("gps.core.fix")
 local logfiles = require("gps.core.logfiles")
 
 local function gen_cfg(rng)
-  return {gps_sensor = "S", log_dir = "/L", max_files = rng.int(1, 6), list_batch = rng.int(1, 5),
-          header_max = 4096, chunk = rng.int(1, 64)}
+  return {
+    gps_sensor = "S",
+    log_dir = "/L",
+    max_files = rng.int(1, 6),
+    list_batch = rng.int(1, 5),
+    header_max = 4096,
+    chunk = rng.int(1, 64)
+  }
 end
 
-local function gen_coords(rng) return {lat = rng.float(-90, 90), lon = rng.float(-180, 180)} end
+local function gen_coords(rng) return { lat = rng.float(-90, 90), lon = rng.float(-180, 180) } end
 
 local function gen_log(rng)
   local kind = rng.int(1, 8)
   if kind == 1 then return "" end
   if kind == 2 then return "Date,Time,Sats\n2026-11-24,14:00:00.000,9\n" end
-  local lines = {"Date,Time,GPS"}
+  local lines = { "Date,Time,GPS" }
   for i = 1, rng.int(0, 12) do
     local gps = ""
     if rng.int(1, 3) > 1 then
@@ -28,7 +34,7 @@ end
 
 -- A file system for the effects to run against.
 local function gen_env(rng)
-  local env = {names = {}, files = {}, no_dir = rng.int(1, 10) == 1}
+  local env = { names = {}, files = {}, no_dir = rng.int(1, 10) == 1 }
   for i = 1, rng.int(0, 14) do
     local name = string.format("Quad-2026-11-%02d-1200%02d.csv", rng.int(1, 28), i)
     env.names[#env.names + 1] = name
@@ -41,20 +47,20 @@ end
 -- What the glue does for each effect, against the generated file system.
 local function perform(env, e)
   if e.kind == "list" then
-    if env.no_dir then return {kind = "listed", err = "no such folder"} end
+    if env.no_dir then return { kind = "listed", err = "no such folder" } end
     -- a big folder takes several calls: "more" until every name is read
     env.read = (env.read or 0) + e.batch
-    if env.read < #env.names then return {kind = "listed", more = true} end
+    if env.read < #env.names then return { kind = "listed", more = true } end
     local acc = logfiles.newest(e.max)
     for _, n in ipairs(env.names) do logfiles.add(acc, n) end
-    return {kind = "listed", files = logfiles.result(acc), seen = #env.names}
+    return { kind = "listed", files = logfiles.result(acc), seen = #env.names }
   end
   local text = env.files[string.match(e.path, "[^/]+$")]
   if e.kind == "open" then
-    if not text then return {kind = "opened"} end
-    return {kind = "opened", size = #text, head = string.sub(text, 1, e.head)}
+    if not text then return { kind = "opened" } end
+    return { kind = "opened", size = #text, head = string.sub(text, 1, e.head) }
   end
-  return {kind = "chunk", text = string.sub(text, e.offset + 1, e.offset + e.len)}
+  return { kind = "chunk", text = string.sub(text, e.offset + 1, e.offset + e.len) }
 end
 
 -- The drawn text op with this text (leading spaces ignored), or nil.
@@ -68,7 +74,7 @@ end
 local clock = 0
 local function tick(s, key, telem)
   clock = clock + 10
-  return app.update(s, {kind = "tick", key = key or false, telem = telem or 0, now = clock})
+  return app.update(s, { kind = "tick", key = key or false, telem = telem or 0, now = clock })
 end
 
 -- Feed effects until none is pending (the list's background reading).
@@ -93,7 +99,9 @@ local function check(t, s, w, h)
   for i = 2, #s.entries do
     local e = s.entries[i]
     t.eq(e.name, s.files[i - 1], "entries follow the files, newest first")
-    if e.status == "reading" then reading = reading + 1; t.eq(s.reading, i, "reading index") end
+    if e.status == "reading" then
+      reading = reading + 1; t.eq(s.reading, i, "reading index")
+    end
     if e.status == "pending" then pending = pending + 1 end
     if e.status == "found" then t.ok(fix.valid(e.fix.lat, e.fix.lon), "a found fix is valid") end
   end
@@ -124,11 +132,16 @@ local function check(t, s, w, h)
 end
 
 return {
-  {"any sequence of keys, telemetry and I/O results keeps the invariants", function(t)
+  { "any sequence of keys, telemetry and I/O results keeps the invariants", function(t)
     local seen = {}
     t.forall(60, function(rng)
-      return {cfg = gen_cfg(rng), env = gen_env(rng), w = rng.pick({128, 212}), steps = rng.int(50, 400),
-              year = rng.pick({2026, 2000, 2005, false})}
+      return {
+        cfg = gen_cfg(rng),
+        env = gen_env(rng),
+        w = rng.pick({ 128, 212 }),
+        steps = rng.int(50, 400),
+        year = rng.pick({ 2026, 2000, 2005, false })
+      }
     end, function(c)
       local rng = t.rng
       local s = app.init(c.cfg, c.w, 64, c.year)
@@ -143,17 +156,23 @@ return {
           check(t, s, c.w, 64)
         end
         local roll = rng.int(1, 10)
-        if roll == 1 then raw = gen_coords(rng)
-        elseif roll == 2 then raw = 0
-        elseif roll == 3 then raw = {lat = 0, lon = 0} end
+        if roll == 1 then
+          raw = gen_coords(rng)
+        elseif roll == 2 then
+          raw = 0
+        elseif roll == 3 then
+          raw = { lat = 0, lon = 0 }
+        end
         local key = false
-        if rng.int(1, 4) == 1 then key = rng.pick({"enter", "next", "prev", "enter", "next", "prev", "exit"}) end
+        if rng.int(1, 4) == 1 then key = rng.pick({ "enter", "next", "prev", "enter", "next", "prev", "exit" }) end
         if key == "enter" and s.files == false and s.sel == app.rows(s) then pressed = true end
         s = tick(s, key, raw)
         if not pressed then t.eq(s.effect, false, "no I/O before Show logs is pressed") end
         for i = 2, #s.entries do seen[s.entries[i].status] = true end
         check(t, s, c.w, 64)
-        if key == "exit" then t.ok(s.quit, "EXIT quits"); break end
+        if key == "exit" then
+          t.ok(s.quit, "EXIT quits"); break
+        end
         t.ok(not s.quit, "only EXIT quits")
       end
       if not s.quit then
@@ -164,11 +183,11 @@ return {
         end
       end
     end)
-    for _, k in ipairs({"found", "none"}) do t.ok(seen[k], "sequences reach " .. k) end
-  end},
+    for _, k in ipairs({ "found", "none" }) do t.ok(seen[k], "sequences reach " .. k) end
+  end },
 
-  {"startup: telemetry and a Show logs button; logs only when pressed", function(t)
-    local env = {names = {}, files = {}}
+  { "startup: telemetry and a Show logs button; logs only when pressed", function(t)
+    local env = { names = {}, files = {} }
     for d = 1, 8 do
       local name = string.format("Quad-2026-11-%02d-120000.csv", d)
       env.names[d] = name
@@ -207,13 +226,13 @@ return {
     t.ok(tick(s, "enter") == s, "ENTER again while it's read does nothing")
     s = settle(s, env)
     t.eq(s.entries[6].fix.lat, 4.5, "read again")
-  end},
+  end },
 
-  {"telemetry follows the live value; ENTER shows reading... for a moment", function(t)
+  { "telemetry follows the live value; ENTER shows reading... for a moment", function(t)
     local s = app.init(gen_cfg(t.rng), 128, 64)
-    local fix = {lat = 54.687156, lon = 25.279651}
+    local fix = { lat = 54.687156, lon = 25.279651 }
     s = tick(s, false, fix)
-    t.eq(s.telem, {lat = 54.687156, lon = 25.279651})
+    t.eq(s.telem, { lat = 54.687156, lon = 25.279651 })
     t.ok(drawn(s, "54.68716, 25.27965"), "the live position")
     s = tick(s, "enter", fix)
     t.eq(s.telem, false, "cleared")
@@ -227,45 +246,48 @@ return {
     t.eq(s.telem, false, "no fix, no position")
     s = tick(s, "exit")
     t.ok(s.quit)
-  end},
+  end },
 
-  {"a late I/O result is ignored", function(t)
-    local s = show_logs(app.init(gen_cfg(t.rng), 128, 64), {names = {}, files = {}})
-    local s2, why = app.update(s, {kind = "chunk", text = "late"})
+  { "a late I/O result is ignored", function(t)
+    local s = show_logs(app.init(gen_cfg(t.rng), 128, 64), { names = {}, files = {} })
+    local s2, why = app.update(s, { kind = "chunk", text = "late" })
     t.eq(why, "stale")
     t.ok(s2 == s)
     local fresh = app.init(gen_cfg(t.rng), 128, 64)
-    s2, why = app.update(fresh, {kind = "listed", files = {}})
+    s2, why = app.update(fresh, { kind = "listed", files = {} })
     t.eq(why, "stale", "a listing nobody asked for")
     t.ok(s2 == fresh)
-  end},
+  end },
 
-  {"no log entries: a note says why", function(t)
+  { "no log entries: a note says why", function(t)
     local cfg = gen_cfg(t.rng)
-    local s = show_logs(app.init(cfg, 128, 64), {names = {}, files = {}, no_dir = true})
-    t.eq(s.log_note, {"Can't list /L", "no such folder"})
+    local s = show_logs(app.init(cfg, 128, 64), { names = {}, files = {}, no_dir = true })
+    t.eq(s.log_note, { "Can't list /L", "no such folder" })
     t.eq(s.sel, 1, "the button is gone; the selection moves up")
-    s = show_logs(app.init(cfg, 128, 64), {names = {"a.txt", "b"}, files = {}})
-    t.eq(s.log_note, {"No .csv in /L", "2 other files"})
+    s = show_logs(app.init(cfg, 128, 64), { names = { "a.txt", "b" }, files = {} })
+    t.eq(s.log_note, { "No .csv in /L", "2 other files" })
     local pressed = tick(tick(app.init(cfg, 128, 64), "next"), "enter")
-    s = app.update(pressed, {kind = "listed", err = "no_dir", ver = "2.8.4"})
-    t.eq(s.log_note, {"Logs need EdgeTX 2.9+", "this radio: 2.8.4"}, "firmware without dir()")
+    s = app.update(pressed, { kind = "listed", err = "no_dir", ver = "2.8.4" })
+    t.eq(s.log_note, { "Logs need EdgeTX 2.9+", "this radio: 2.8.4" }, "firmware without dir()")
     local ops = view.ops(s)
     t.eq(ops[#ops - 1].s, "Logs need EdgeTX 2.9+", "fits a 128 px line")
-    s = app.update(pressed, {kind = "listed", err = "no_dir"})
+    s = app.update(pressed, { kind = "listed", err = "no_dir" })
     t.eq(s.log_note[2], "this radio: older", "version unknown")
-    s = show_logs(app.init(cfg, 128, 64), {names = {"a.txt", "b"}, files = {}})
+    s = show_logs(app.init(cfg, 128, 64), { names = { "a.txt", "b" }, files = {} })
     ops = view.ops(s)
     t.eq(ops[#ops - 1].s, "No .csv in /L")
     t.eq(ops[#ops].s, " 2 other files")
     t.eq(app.rows(s), 1, "the note isn't a row")
-  end},
+  end },
 
-  {"a log's name on two lines: date and time to the second, then the model", function(t)
+  { "a log's name on two lines: date and time to the second, then the model", function(t)
     local long = "AVeryLongFileNameWithoutAnyDateInIt.csv"
-    local env = {names = {"MyVeryLongQuad1-2026-11-24-093015.csv", long}, files = {
-      ["MyVeryLongQuad1-2026-11-24-093015.csv"] = "Date,Time,GPS\n", [long] = "Date,Time,GPS\n",
-    }}
+    local env = {
+      names = { "MyVeryLongQuad1-2026-11-24-093015.csv", long },
+      files = {
+        ["MyVeryLongQuad1-2026-11-24-093015.csv"] = "Date,Time,GPS\n", [long] = "Date,Time,GPS\n",
+      }
+    }
     local cfg = gen_cfg(t.rng)
     cfg.max_files = 5
     local s = tick(show_logs(app.init(cfg, 128, 64), env), "prev")
@@ -275,9 +297,9 @@ return {
     s = tick(tick(s, "next"), "next")
     t.ok(drawn(s, "2. AVeryLongFileNameWithoutAnyDa"), "another name: the first 32 characters")
     t.ok(drawn(s, "teInIt"), "and the rest on the next line")
-  end},
+  end },
 
-  {"radio clock at 2000-2005 (its battery flat): a warning under Logs, from the start", function(t)
+  { "radio clock at 2000-2005 (its battery flat): a warning under Logs, from the start", function(t)
     local cfg = gen_cfg(t.rng)
     cfg.max_files = 5
     t.ok(not drawn(app.init(cfg, 128, 64, 2006), "Warning. Year is 2006"), "clock set: no warning")
@@ -285,34 +307,34 @@ return {
     t.ok(drawn(app.init(cfg, 128, 64, 2005), "Warning. Year is 2005"), "2005 is still too early: its year")
     local s = app.init(cfg, 128, 64, 2000)
     local ops = view.ops(s)
-    t.eq(ops[7], {op = "text", x = 0, y = 30, s = "Warning. Year is 2000", inv = false, small = false}, "under Logs")
-    t.eq(ops[8], {op = "text", x = 0, y = 38, s = " RTC battery is low", inv = false, small = false})
-    t.eq(ops[9], {op = "text", x = 0, y = 48, s = "Show 5 last logs", inv = false, small = false}, "then the button")
-    local env = {names = {"Quad-2000-01-01-000107.csv"}, files = {["Quad-2000-01-01-000107.csv"] = "Date,Time,GPS\n"}}
+    t.eq(ops[7], { op = "text", x = 0, y = 30, s = "Warning. Year is 2000", inv = false, small = false }, "under Logs")
+    t.eq(ops[8], { op = "text", x = 0, y = 38, s = " RTC battery is low", inv = false, small = false })
+    t.eq(ops[9], { op = "text", x = 0, y = 48, s = "Show 5 last logs", inv = false, small = false }, "then the button")
+    local env = { names = { "Quad-2000-01-01-000107.csv" }, files = { ["Quad-2000-01-01-000107.csv"] = "Date,Time,GPS\n" } }
     s = show_logs(s, env)
     t.eq(s.sel, 2, "on the log")
     ops = view.ops(s)
-    t.eq(ops[1], {op = "text", x = 0, y = 0, s = "no GPS fix", inv = false, small = false}, "scrolled 10 px")
-    t.eq(ops[2], {op = "text", x = 0, y = 10, s = "Logs", inv = false, small = false})
+    t.eq(ops[1], { op = "text", x = 0, y = 0, s = "no GPS fix", inv = false, small = false }, "scrolled 10 px")
+    t.eq(ops[2], { op = "text", x = 0, y = 10, s = "Logs", inv = false, small = false })
     t.eq(ops[4].s, "Warning. Year is 2000", "the warning still above the log")
     t.ok(drawn(s, "1. 2000-01-01 00:01:07").inv, "the log, with its year")
     t.eq(view.ops(tick(s, "prev"))[1].s, "Telemetry", "back at the top")
-  end},
+  end },
 
-  {"page: two headings, rows under them; the selected row is an inverted bar; it scrolls", function(t)
+  { "page: two headings, rows under them; the selected row is an inverted bar; it scrolls", function(t)
     local cfg = gen_cfg(t.rng)
     cfg.max_files = 5
     local s = app.init(cfg, 128, 64)
     t.eq(view.ops(s), {
-      {op = "text", x = 0, y = 0, s = "Telemetry", inv = false, small = false},
-      {op = "fill", x = 0, y = 8, w = 128, h = 1},
-      {op = "fill", x = 0, y = 10, w = 128, h = 8},
-      {op = "text", x = 0, y = 10, s = "no GPS fix", inv = true, small = false},
-      {op = "text", x = 0, y = 20, s = "Logs", inv = false, small = false},
-      {op = "fill", x = 0, y = 28, w = 128, h = 1},
-      {op = "text", x = 0, y = 30, s = "Show 5 last logs", inv = false, small = false},
+      { op = "text", x = 0, y = 0,  s = "Telemetry",        inv = false, small = false },
+      { op = "fill", x = 0, y = 8,  w = 128,                h = 1 },
+      { op = "fill", x = 0, y = 10, w = 128,                h = 8 },
+      { op = "text", x = 0, y = 10, s = "no GPS fix",       inv = true,  small = false },
+      { op = "text", x = 0, y = 20, s = "Logs",             inv = false, small = false },
+      { op = "fill", x = 0, y = 28, w = 128,                h = 1 },
+      { op = "text", x = 0, y = 30, s = "Show 5 last logs", inv = false, small = false },
     }, "at start")
-    local env = {names = {}, files = {}}
+    local env = { names = {}, files = {} }
     for d = 1, 8 do
       local name = string.format("Quad-2026-11-%02d-120000.csv", d)
       env.names[d] = name
@@ -321,27 +343,30 @@ return {
     s = tick(show_logs(s, env), "prev")
     local ops = view.ops(s)
     t.eq(#ops, 10, "one log under the headings, and the next one's first line")
-    t.eq(ops[7], {op = "text", x = 0, y = 30, s = "1. 2026-11-08 12:00:00", inv = false, small = true}, "logs numbered from 1")
-    t.eq(ops[8], {op = "text", x = 0, y = 38, s = " Quad", inv = false, small = true}, "the model under it")
-    t.eq(ops[9], {op = "text", x = 0, y = 46, s = "No location", inv = false, small = false})
-    t.eq(ops[10], {op = "text", x = 0, y = 56, s = "2. 2026-11-07 12:00:00", inv = false, small = true}, "part of the next")
+    t.eq(ops[7], { op = "text", x = 0, y = 30, s = "1. 2026-11-08 12:00:00", inv = false, small = true },
+      "logs numbered from 1")
+    t.eq(ops[8], { op = "text", x = 0, y = 38, s = " Quad", inv = false, small = true }, "the model under it")
+    t.eq(ops[9], { op = "text", x = 0, y = 46, s = "No location", inv = false, small = false })
+    t.eq(ops[10], { op = "text", x = 0, y = 56, s = "2. 2026-11-07 12:00:00", inv = false, small = true },
+      "part of the next")
     s = tick(s, "next")
     ops = view.ops(s)
-    t.eq(ops[6], {op = "fill", x = 0, y = 30, w = 128, h = 24}, "a bar behind all three lines")
+    t.eq(ops[6], { op = "fill", x = 0, y = 30, w = 128, h = 24 }, "a bar behind all three lines")
     t.ok(ops[7].inv and ops[8].inv and ops[9].inv and not ops[3].inv, "all inverted, telemetry not")
     for _ = 1, 3 do s = tick(s, "next") end
     t.eq(s.sel, 5)
     ops = view.ops(s)
     t.eq(#ops, 8, "scrolled: headings gone, a log above the selection, part of one below")
-    t.eq(ops[1], {op = "text", x = 0, y = 0, s = "3. 2026-11-06 12:00:00", inv = false, small = true})
-    t.eq(ops[4], {op = "fill", x = 0, y = 26, w = 128, h = 24})
+    t.eq(ops[1], { op = "text", x = 0, y = 0, s = "3. 2026-11-06 12:00:00", inv = false, small = true })
+    t.eq(ops[4], { op = "fill", x = 0, y = 26, w = 128, h = 24 })
     t.eq(ops[5].s, "4. 2026-11-05 12:00:00")
     t.ok(ops[7].inv)
-    t.eq(ops[8], {op = "text", x = 0, y = 52, s = "5. 2026-11-04 12:00:00", inv = false, small = true}, "the next one's first line")
+    t.eq(ops[8], { op = "text", x = 0, y = 52, s = "5. 2026-11-04 12:00:00", inv = false, small = true },
+      "the next one's first line")
     s = tick(tick(s, "next"), "next")
     t.eq(s.sel, 6, "stops at the last log")
     t.ok(drawn(s, "5. 2026-11-04 12:00:00").inv)
     for _ = 1, 6 do s = tick(s, "prev") end
     t.eq(view.ops(s)[1].s, "Telemetry", "back at the top: the headings again")
-  end},
+  end },
 }

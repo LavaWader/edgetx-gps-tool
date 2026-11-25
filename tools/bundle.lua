@@ -13,27 +13,36 @@ local SRC, OUT = arg[1], arg[2]
 assert(SRC and OUT, "usage: bundle.lua SRC_DIR OUT_DIR")
 
 local ENTRY = "tool.glue.main"
-local NAME = "GPStool"           -- file and folder name on the SD card
-local TITLE = "GPS tool"         -- shown in SYS -> Tools
+local NAME = "GPStool"   -- file and folder name on the SD card
+local TITLE = "GPS tool" -- shown in SYS -> Tools
 local PART_DIR = "/SCRIPTS/TOOLS/" .. NAME .. "/"
 -- Part files and their roots; a file also takes every module its roots reach
 -- that no other file has.
 -- "ui" is never unloaded: it's split off only so no file is too big to compile.
 local PARTS = {
-  {name = "ui", files = {
-    {file = "ui", roots = {"tool.core.app", "gps.core.fix"}},
-    {file = "uiview", roots = {"tool.core.view"}},
-  }},
-  {name = "logs", files = {
-    {file = "logs", roots = {"tool.core.reading"}},
-    {file = "logfs", roots = {"gps.infra.logfs"}},
-    {file = "csv", roots = {"gps.core.csv"}},
-    {file = "logscan", roots = {"gps.core.logscan"}},
-  }},
+  {
+    name = "ui",
+    files = {
+      { file = "ui",     roots = { "tool.core.app", "gps.core.fix" } },
+      { file = "uiview", roots = { "tool.core.view" } },
+    }
+  },
+  {
+    name = "logs",
+    files = {
+      { file = "logs",    roots = { "tool.core.reading" } },
+      { file = "logfs",   roots = { "gps.infra.logfs" } },
+      { file = "csv",     roots = { "gps.core.csv" } },
+      { file = "logscan", roots = { "gps.core.logscan" } },
+    }
+  },
   -- Sorting the folder listing: needed only inside the call that handles it.
-  {name = "listing", files = {
-    {file = "logfiles", roots = {"gps.core.logfiles"}},
-  }},
+  {
+    name = "listing",
+    files = {
+      { file = "logfiles", roots = { "gps.core.logfiles" } },
+    }
+  },
 }
 
 local function read(name)
@@ -61,7 +70,7 @@ local function collect(roots, me)
     local text = read(name)
     for dep in text:gmatch('require%s*%(%s*"([%w_%.]+)"%s*%)') do visit(dep) end
     owner[name] = me
-    order[#order + 1] = {name = name, text = text}
+    order[#order + 1] = { name = name, text = text }
   end
   for _, r in ipairs(roots) do visit(r) end
   return order
@@ -82,12 +91,12 @@ local function write(path, lines)
   f:close()
 end
 
-local main = collect({ENTRY}, "main")
+local main = collect({ ENTRY }, "main")
 local files, map, units = {}, {}, {}
 for _, p in ipairs(PARTS) do
   for _, f in ipairs(p.files) do
     local mods = collect(f.roots, f.file)
-    files[#files + 1] = {name = f.file, mods = mods}
+    files[#files + 1] = { name = f.file, mods = mods }
     units[#units + 1] = f.file .. ' = "' .. p.name .. '"'
     for _, m in ipairs(mods) do map[#map + 1] = '["' .. m.name .. '"] = "' .. f.file .. '"' end
   end

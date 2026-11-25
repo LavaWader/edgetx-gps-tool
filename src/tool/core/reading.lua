@@ -11,20 +11,26 @@ local with, set, next_read = app.with, app.set, app.next_read
 local M = {}
 
 local function finish(s, status, fix)
-  local e = with(s.entries[s.reading], {status = status, fix = fix})
-  return next_read(with(s, {entries = set(s, s.reading, e), reading = false,
-                                    path = false, scan = false, cols = false, effect = false}))
+  local e = with(s.entries[s.reading], { status = status, fix = fix })
+  return next_read(with(s, {
+    entries = set(s, s.reading, e),
+    reading = false,
+    path = false,
+    scan = false,
+    cols = false,
+    effect = false
+  }))
 end
 
 local function continue_scan(s, st)
   if st.found then
     local f = st.found
-    return finish(s, "found", {lat = f.lat, lon = f.lon}) -- only what's shown: it's kept
+    return finish(s, "found", { lat = f.lat, lon = f.lon }) -- only what's shown: it's kept
   end
   if st.err then return finish(s, "error", false) end
   if st.done then return finish(s, "none", false) end
   local off, len = scan().request(st)
-  return with(s, {scan = st, effect = {kind = "read", path = s.path, offset = off, len = len}})
+  return with(s, { scan = st, effect = { kind = "read", path = s.path, offset = off, len = len } })
 end
 
 -- No log entries gets a note saying why, so it can be told apart on the radio.
@@ -33,22 +39,22 @@ function M.listed(s, m)
   local dir, files, note = s.ctx.cfg.log_dir, {}, false
   if m.files then
     files = m.files
-    if #files == 0 then note = {"No .csv in " .. dir, string.format("%d other files", m.seen or 0)} end -- @mutant no_csv_note: #files == 0 => #files < 0
-  elseif m.err == "no_dir" then -- @mutant update_note: m.err == "no_dir" => m.err == "no dir"
-    note = {"Logs need EdgeTX 2.9+", "this radio: " .. (m.ver or "older")}
+    if #files == 0 then note = { "No .csv in " .. dir, string.format("%d other files", m.seen or 0) } end -- @mutant no_csv_note: #files == 0 => #files < 0
+  elseif m.err == "no_dir" then                                                                           -- @mutant update_note: m.err == "no_dir" => m.err == "no dir"
+    note = { "Logs need EdgeTX 2.9+", "this radio: " .. (m.ver or "older") }
   else
-    note = {"Can't list " .. dir, m.err or "?"}
+    note = { "Can't list " .. dir, m.err or "?" }
   end
-  local list = {s.entries[1]}
-  for i = 1, #files do list[i + 1] = {kind = "log", name = files[i], status = "pending", fix = false} end
-  return next_read(with(s, {files = files, entries = list, log_note = note, effect = false}))
+  local list = { s.entries[1] }
+  for i = 1, #files do list[i + 1] = { kind = "log", name = files[i], status = "pending", fix = false } end
+  return next_read(with(s, { files = files, entries = list, log_note = note, effect = false }))
 end
 
 function M.opened(s, m)
   if not m.size or not m.head then return finish(s, "error", false) end
   local cols = require("gps.core.csv").header(m.head)
   if not cols then return finish(s, "none", false) end
-  return continue_scan(with(s, {cols = cols}), scan().start(m.size, s.ctx.cfg.chunk))
+  return continue_scan(with(s, { cols = cols }), scan().start(m.size, s.ctx.cfg.chunk))
 end
 
 function M.chunk(s, m)

@@ -7,14 +7,14 @@
 local SRC = arg[1] or "src"
 local LUAC = os.getenv("LUAC") or "luac5.4"
 
-local LAYERS = {core = true, data = true, infra = true, saga = true, glue = true}
+local LAYERS = { core = true, data = true, infra = true, saga = true, glue = true }
 -- Which layers a file in each layer may require.
 local MAY_REQUIRE = {
-  core = {core = true},
-  data = {core = true, data = true},
-  infra = {core = true, infra = true},
-  saga = {core = true, infra = true, saga = true},
-  glue = {core = true, data = true, infra = true, saga = true, glue = true},
+  core = { core = true },
+  data = { core = true, data = true },
+  infra = { core = true, infra = true },
+  saga = { core = true, infra = true, saga = true },
+  glue = { core = true, data = true, infra = true, saga = true, glue = true },
 }
 -- The only globals core and data may touch: pure standard library.
 -- tostring is left out on purpose: it formats numbers differently on 5.2 and 5.4.
@@ -25,9 +25,9 @@ for name in ("require math string table bit32 pairs ipairs type error assert sel
 end
 -- Globals EdgeTX's Lua doesn't have, seen on a Boxer with EdgeTX 2.8.4 (no
 -- table library, no _G). Banned in every shipped file; tests run on desktop.
-local RADIO_MISSING = {table = true, _G = true}
+local RADIO_MISSING = { table = true, _G = true }
 -- Fields core and data may not read (impure, or missing in Lua 5.2).
-local BANNED_FIELDS = {random = true, randomseed = true, tointeger = true, ult = true}
+local BANNED_FIELDS = { random = true, randomseed = true, tointeger = true, ult = true }
 -- Opcodes of the 5.3+ integer and bitwise operators; EdgeTX's Lua 5.2 can't parse them.
 local BANNED_OPS = {}
 for op in ("IDIV IDIVK BAND BANDK BOR BORK BXOR BXORK SHL SHR SHLI SHRI BNOT"):gmatch("%S+") do
@@ -70,9 +70,13 @@ local function strip(src, keep_strings)
       local j = i + 1
       while j <= n do
         local d = src:sub(j, j)
-        if d == "\\" then j = j + 2
-        elseif d == c then break
-        else j = j + 1 end
+        if d == "\\" then
+          j = j + 2
+        elseif d == c then
+          break
+        else
+          j = j + 1
+        end
       end
       out[#out + 1] = keep_strings and src:sub(i, j) or (c .. blank(src:sub(i + 1, j - 1)) .. c)
       i = j + 1

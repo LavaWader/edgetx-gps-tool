@@ -17,15 +17,15 @@ local state
 local perform = {
   list = function(e)
     local r, err, ver = require("gps.infra.logfs").list(e.dir, e.max, e.batch)
-    if r == "more" then return {kind = "listed", more = true} end
-    return {kind = "listed", files = r and r.list, seen = r and r.seen, err = err, ver = ver}
+    if r == "more" then return { kind = "listed", more = true } end
+    return { kind = "listed", files = r and r.list, seen = r and r.seen, err = err, ver = ver }
   end,
   open = function(e)
     local size, head = require("gps.infra.logfs").open(e.path, e.head)
-    return {kind = "opened", size = size, head = head}
+    return { kind = "opened", size = size, head = head }
   end,
   read = function(e)
-    return {kind = "chunk", text = require("gps.infra.logfs").read(e.path, e.offset, e.len)}
+    return { kind = "chunk", text = require("gps.infra.logfs").read(e.path, e.offset, e.len) }
   end,
 }
 
@@ -38,8 +38,12 @@ local function run(event)
     state = app.update(state, perform[state.effect.kind](state.effect))
     collectgarbage() -- the I/O's garbage (a chunk, its lines) goes before the rest
   end
-  state = app.update(state, {kind = "tick", key = radio.key(event), telem = telemetry.read(cfg.gps_sensor),
-                             now = radio.now()})
+  state = app.update(state, {
+    kind = "tick",
+    key = radio.key(event),
+    telem = telemetry.read(cfg.gps_sensor),
+    now = radio.now()
+  })
   if not app.needs_logs(state) then unload("logs") end
   if not app.needs_listing(state) then unload("listing") end
   -- while a log is read its code is in memory too: draw on a clean heap
@@ -52,4 +56,4 @@ local function run(event)
   return 0
 end
 
-return {init = init, run = run}
+return { init = init, run = run }

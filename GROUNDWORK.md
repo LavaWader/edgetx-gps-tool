@@ -13,6 +13,7 @@ Applied guideline: `groundwork` @ `0ad2b84` (Guide: when to not add layer).
   - Global assignment is banned everywhere, as are 5.3+ operators, `<const>`/`<close>`, `goto` (luamin can't parse it) and `require` with a non-literal name.
   - There's no suppression syntax.
 - **Type tier:** none. Lua has no static types.
+- **Formatting:** lua-language-server's built-in formatter (EmmyLuaCodeStyle), the one the editor formats with on save, so `make` and the editor never undo each other. `tools/format.lua` runs inside the language server's binary and repeats until the file stops changing; `.editorconfig` sets the indent. CI pins the same version (3.19.1) and runs `make format-check`.
 - **Tests:** they sit beside the code in their layer (`*_test.lua`), so the lint covers them too.
 - **UI state:** `tool/core/app.lua` is `update(state, msg)`. I/O requests are data in `state.effect`, and the glue performs at most one per `run()` call, then feeds the result back.
 - **Budgets, checked by `e2e/smoke_test.lua` on the built files** (desktop Lua 5.4, so ratios matter more than exact numbers):

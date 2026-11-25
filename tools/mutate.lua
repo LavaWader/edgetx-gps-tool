@@ -17,8 +17,12 @@ local filter = next(only) ~= nil
 
 local function sh(cmd) return os.execute(cmd) == true end
 local function quiet(cmd) return sh(cmd .. " >/dev/null 2>&1") end
-local function read(path) local f = assert(io.open(path, "rb")); local s = f:read("*a"); f:close(); return s end
-local function write(path, s) local f = assert(io.open(path, "wb")); f:write(s); f:close() end
+local function read(path)
+  local f = assert(io.open(path, "rb")); local s = f:read("*a"); f:close(); return s
+end
+local function write(path, s)
+  local f = assert(io.open(path, "wb")); f:write(s); f:close()
+end
 
 local mutants, ids = {}, {}
 local p = io.popen("grep -rl --include='*.lua' '@mutant' src | grep -v '_test.lua$' | sort")
@@ -34,18 +38,20 @@ for file in p:lines() do
       assert(not ids[id], "duplicate mutant id " .. id)
       ids[id] = true
       if not filter or only[id] then
-        mutants[#mutants + 1] = {id = id, file = file, line = lineno, from = from, to = to}
+        mutants[#mutants + 1] = { id = id, file = file, line = lineno, from = from, to = to }
       end
     end
   end
 end
 p:close()
-if #mutants == 0 then print("mutate: no markers selected"); os.exit(false) end
+if #mutants == 0 then
+  print("mutate: no markers selected"); os.exit(false)
+end
 
 local function suite(dir)
   return quiet("make -C " .. dir .. " dist LUA=" .. LUA)
-    and quiet("timeout 300 " .. LUA .. " tools/test.lua --root " .. dir)
-    and quiet("timeout 300 " .. LUA .. " tools/test.lua --e2e --root " .. dir)
+      and quiet("timeout 300 " .. LUA .. " tools/test.lua --root " .. dir)
+      and quiet("timeout 300 " .. LUA .. " tools/test.lua --e2e --root " .. dir)
 end
 
 local function workdir()
@@ -57,7 +63,9 @@ local function workdir()
 end
 
 local base = workdir()
-if not suite(base) then print("mutate: the unmutated suite fails; fix that first"); os.exit(false) end
+if not suite(base) then
+  print("mutate: the unmutated suite fails; fix that first"); os.exit(false)
+end
 quiet("rm -rf " .. base)
 
 local survived = {}

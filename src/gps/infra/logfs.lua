@@ -21,17 +21,21 @@ function M.list(path, max, batch)
   local files = require("gps.core.logfiles")
   local ok, err = pcall(function()
     if not listing or listing.path ~= path then
-      listing = {path = path, it = dir(path), acc = files.newest(max), done = false}
+      listing = { path = path, it = dir(path), acc = files.newest(max), done = false }
     end
     for _ = 1, batch do
       local name = listing.it()
-      if not name then listing.done = true; return end
+      if not name then
+        listing.done = true; return
+      end
       files.add(listing.acc, name)
     end
   end)
-  if not ok then listing = false; return nil, tostring(err) end
+  if not ok then
+    listing = false; return nil, tostring(err)
+  end
   if not listing.done then return "more" end
-  local r = {list = files.result(listing.acc), seen = listing.acc.seen}
+  local r = { list = files.result(listing.acc), seen = listing.acc.seen }
   listing = false
   return r
 end

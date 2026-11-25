@@ -48,7 +48,7 @@ function M.header(text)
   local line = trim_cr(string.sub(text, 1, nl - 1))
   local names = M.fields(line, #line + 1)
   for i = 1, #names do
-    if names[i] == "GPS" then return {gps = i} end -- @mutant gps_column: {gps = i} => {gps = i + 1}
+    if names[i] == "GPS" then return { gps = i } end -- @mutant gps_column: { gps = i } => { gps = i + 1 }
   end
   return nil, "no_gps"
 end
@@ -61,7 +61,7 @@ function M.parse_row(line, cols)
   local a, b = string.match(g, "^%s*(%S+)%s+(%S+)%s*$")
   local lat, lon = tonumber(a), tonumber(b)
   if not fix.valid(lat, lon) then return nil end
-  return {lat = lat, lon = lon}
+  return { lat = lat, lon = lon }
 end
 
 return M
