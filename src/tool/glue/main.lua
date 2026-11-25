@@ -16,8 +16,9 @@ local state
 -- The log reader is required here, not above: it's in an on-demand part.
 local perform = {
   list = function(e)
-    local names, err, ver = require("gps.infra.logfs").list(e.dir)
-    return {kind = "listed", names = names, err = err, ver = ver}
+    local r, err, ver = require("gps.infra.logfs").list(e.dir, e.max, e.batch)
+    if r == "more" then return {kind = "listed", more = true} end
+    return {kind = "listed", files = r and r.list, seen = r and r.seen, err = err, ver = ver}
   end,
   open = function(e)
     local size, head = require("gps.infra.logfs").open(e.path, e.head)
@@ -33,9 +34,15 @@ local function init()
 end
 
 local function run(event)
-  if state.effect then state = app.update(state, perform[state.effect.kind](state.effect)) end
+  if state.effect then
+    state = app.update(state, perform[state.effect.kind](state.effect))
+    collectgarbage() -- the I/O's garbage (a chunk, its lines) goes before the rest
+  end
   state = app.update(state, {kind = "tick", key = radio.key(event), telem = telemetry.read(cfg.gps_sensor)})
   if not app.needs_logs(state) then unload("logs") end
+  if not app.needs_listing(state) then unload("listing") end
+  -- while a log is read its code is in memory too: draw on a clean heap
+  if app.needs_logs(state) then collectgarbage() end
   radio.draw(view.ops(state))
   -- Lua shares the radio's heap: collect this call's garbage now, so it
   -- never piles up (it took the radio down once).

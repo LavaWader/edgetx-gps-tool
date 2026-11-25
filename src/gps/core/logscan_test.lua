@@ -1,17 +1,16 @@
 local scan = require("gps.core.logscan")
 local fix = require("gps.core.fix")
+local csv = require("gps.core.csv")
 
--- CSV-encode one field, quoting it when needed (or at random, like EdgeTX's
--- always-quoted flight mode).
-local function csv(v, rng)
-  if string.find(v, '[,"]') or rng.int(1, 4) == 1 then
-    return '"' .. string.gsub(v, '"', '""') .. '"'
-  end
+-- A text field the way EdgeTX writes one: sometimes quoted, like the flight
+-- mode ("AIR!"). EdgeTX's text values hold no commas or quotes.
+local function quote(v, rng)
+  if rng.int(1, 4) == 1 then return '"' .. v .. '"' end
   return v
 end
 
 local function random_text(rng)
-  local chars = {"a", "Z", "!", ",", '"', " ", "1"}
+  local chars = {"a", "Z", "!", " ", "1", "-"}
   local b = {}
   for i = 1, rng.int(0, 6) do b[i] = rng.pick(chars) end
   return table.concat(b)
@@ -19,7 +18,7 @@ end
 
 -- A random log, generated row by row so the expected answer is known without
 -- parsing anything: header with the columns in random order, rows whose GPS
--- field is a fix, empty, 0 0 or garbage, quoted fields with commas and quotes,
+-- field is a fix, empty, 0 0 or garbage, quoted text fields,
 -- sometimes \r\n line ends, and sometimes a last row still being written.
 local function gen_log(rng)
   local names = {"Date", "Time", "GPS", "FM", "1RSS(dB)", "Sats", "Alt(m)", "Alt(m)"}
@@ -38,15 +37,15 @@ local function gen_log(rng)
       gps = string.format("%.6f %.6f", lat, lon)
       lat, lon = tonumber(string.format("%.6f", lat)), tonumber(string.format("%.6f", lon))
       if fix.valid(lat, lon) then
-        expected = {lat = lat, lon = lon, date = "2026-11-24", time = string.format("14:00:%02d.000", r % 60)}
+        expected = {lat = lat, lon = lon}
       end
     elseif kind == 4 then gps = "0.000000 0.000000"
     elseif kind == 5 then gps = "garbage" end
     for i, name in ipairs(names) do
-      if name == "GPS" then row[i] = csv(gps, rng)
+      if name == "GPS" then row[i] = gps
       elseif name == "Date" then row[i] = "2026-11-24"
       elseif name == "Time" then row[i] = string.format("14:00:%02d.000", r % 60)
-      else row[i] = csv(random_text(rng), rng) end
+      else row[i] = quote(random_text(rng), rng) end
     end
     lines[#lines + 1] = table.concat(row, ",")
   end
@@ -75,47 +74,45 @@ local function run(text, chunk, cols)
 end
 
 return {
-  {"fields: quoted values with commas and doubled quotes round-trip", function(t)
+  {"fields: split at commas, empty ones kept, quotes kept, stops early", function(t)
     t.forall(400, function(rng)
       local vals = {}
-      for i = 1, rng.int(1, 10) do vals[i] = random_text(rng) end
-      local enc = {}
-      for i, v in ipairs(vals) do enc[i] = csv(v, rng) end
-      return {vals = vals, line = table.concat(enc, ",")}
+      for i = 1, rng.int(1, 10) do vals[i] = quote(random_text(rng), rng) end
+      return {vals = vals, line = table.concat(vals, ",")}
     end, function(c)
-      t.eq(scan.fields(c.line, #c.vals), c.vals, "all fields")
-      t.eq(scan.fields(c.line, 1), {c.vals[1]}, "stops early")
+      t.eq(csv.fields(c.line, #c.vals), c.vals, "all fields")
+      t.eq(csv.fields(c.line, 1), {c.vals[1]}, "stops early")
     end)
   end},
 
   {"header: finds the columns, needs a full first line", function(t)
-    t.eq(scan.header("Date,Time,GPS,Sats\n2026"), {date = 1, time = 2, gps = 3, last = 3})
-    t.eq(scan.header("Time,Sats,GPS\r\n"), {date = false, time = 1, gps = 3, last = 3})
-    local cols, why = scan.header("Date,Time,Sats\n")
+    t.eq(csv.header("Date,Time,GPS,Sats\n2026"), {gps = 3})
+    t.eq(csv.header("Time,Sats,GPS\r\n"), {gps = 3})
+    local cols, why = csv.header("Date,Time,Sats\n")
     t.eq(cols, nil)
     t.eq(why, "no_gps")
-    cols, why = scan.header("Date,Time,GPS")
+    cols, why = csv.header("Date,Time,GPS")
     t.eq(why, "no_header")
   end},
 
   {"rows in the shape EdgeTX 2.10 writes (from a real log, coordinates moved)", function(t)
     local head = "Date,Time,1RSS(dB),2RSS(dB),RQly(%),RSNR(dB),ANT,RFMD,TPWR(mW),TRSS(dB),TQly(%),"
       .. "TSNR(dB),FM,VSpd(m/s),Alt(m),GPS,GSpd(kmh),Hdg(\194\176),Alt(m),Sats,RxBt(V),Curr(A),Capa(mAh)\n"
-    local cols = scan.header(head)
+    local cols = csv.header(head)
     t.eq(cols.gps, 16)
     local nofix = '2000-01-01,01:31:48.870,0,0,0,0,0,0,0,0,0,0,"",0.0,0.0,,0.0,0.00,0,0,0.0,0.0,0'
     local withfix = '2000-01-01,01:32:47.840,-10,-7,100,12,1,2,500,-13,88,13,"AIR!",0.0,4.1,'
       .. '12.345678 -98.765432,5.7,84.90,195,6,23.1,0.2,11'
-    t.eq(scan.parse_row(nofix, cols), nil, "empty GPS field before the fix")
-    t.eq(scan.parse_row(withfix, cols),
-      {lat = 12.345678, lon = -98.765432, date = "2000-01-01", time = "01:32:47.840"})
+    t.eq(csv.parse_row(nofix, cols), nil, "empty GPS field before the fix")
+    t.eq(csv.parse_row(withfix, cols),
+      {lat = 12.345678, lon = -98.765432})
     local st = run(head .. nofix .. "\n" .. withfix .. "\n" .. nofix .. "\n", 100, cols)
-    t.eq(st.found.time, "01:32:47.840", "the fix before the link dropped")
+    t.eq(st.found, {lat = 12.345678, lon = -98.765432}, "the fix before the link dropped")
   end},
 
   {"scanning backwards in any chunk size finds the newest complete valid row", function(t)
     t.forall(400, gen_log, function(c)
-      local cols = scan.header(c.text)
+      local cols = csv.header(c.text)
       local st = run(c.text, c.chunk, cols)
       t.eq(st.found, c.expected)
       t.eq(st.err, false)
@@ -124,7 +121,7 @@ return {
 
   {"a valid newest row is found in the first read when the chunk holds it", function(t)
     local text = "Date,Time,GPS\n2026-11-24,14:00:00.000,1.5 2.5\n2026-11-24,14:00:01.000,3.5 4.5\n"
-    local st, reads = run(text, 64, scan.header(text))
+    local st, reads = run(text, 64, csv.header(text))
     t.eq(st.found.lat, 3.5)
     t.eq(reads, 1)
   end},

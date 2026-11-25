@@ -22,15 +22,15 @@ return {
     t.eq(fix.from_telemetry(nil), nil)
   end},
 
-  {"text round-trips to 5 decimals and fits 20 characters", function(t)
+  {"text round-trips to 5 decimals and fits 21 characters", function(t)
     t.forall(300, function(rng) return {lat = rng.float(-90, 90), lon = rng.float(-180, 180)} end,
       function(c)
         local s = fix.text(c)
-        local lat, lon = string.match(s, "^(%-?%d+%.%d%d%d%d%d),(%-?%d+%.%d%d%d%d%d)$")
+        local lat, lon = string.match(s, "^(%-?%d+%.%d%d%d%d%d), (%-?%d+%.%d%d%d%d%d)$")
         t.ok(lat, "format: " .. s)
-        t.ok(#s <= 20, "length: " .. s)
+        t.ok(#s <= 21, "length: " .. s)
         t.ok(math.abs(tonumber(lat) - c.lat) <= 0.000005 and math.abs(tonumber(lon) - c.lon) <= 0.000005, "value")
       end)
-    t.eq(fix.text({lat = -90, lon = -180}), "-90.00000,-180.00000", "the longest")
+    t.eq(fix.text({lat = -90, lon = -180}), "-90.00000, -180.00000", "the longest")
   end},
 }

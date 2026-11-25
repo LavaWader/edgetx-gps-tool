@@ -65,7 +65,7 @@ return {
       n = n + 1
     end
     h:close()
-    t.eq(n, 6, "the tool and its five part files")
+    t.eq(n, 7, "the tool and its six part files")
     t.ok(string.find(string.sub(read(tool(t)), 1, 200), "TNS|", 1, true), "tool name near the start")
   end},
 
@@ -74,32 +74,83 @@ return {
     r.init()
     r.run(nil)
     t.ok(r.has_text("Telemetry"), "telemetry row")
-    t.ok(r.has_text("54.68716,-125.27965"), "live position, 5 decimals")
-    t.ok(r.has_text("Can't list /LOGS"), "says why there are no logs")
+    t.ok(r.has_text("54.68716, -125.27965"), "live position, 5 decimals")
+    t.ok(r.has_text("Show 10 last logs"), "a button for the logs")
     r.gps = {lat = -33.856784, lon = 151.215297}
     r.run(nil)
-    t.ok(r.has_text("-33.85678,151.21530"), "follows telemetry")
+    t.ok(r.has_text("-33.85678, 151.21530"), "follows telemetry")
     r.gps = nil
     r.run(nil)
     t.ok(r.has_text("no GPS fix"), "fix lost")
+    t.eq(r.sd_calls, 0, "the SD card isn't touched")
+    t.eq(r.loads, {"/SCRIPTS/TOOLS/GPStool/ui.lua", "/SCRIPTS/TOOLS/GPStool/uiview.lua"}, "no log code loaded")
+    r.run("next"); r.run("enter")
+    t.ok(r.idle_until("Can't list /LOGS", 10), "pressed: says why there are no logs")
     t.eq(r.parts(), {"/SCRIPTS/TOOLS/GPStool/ui.lua", "/SCRIPTS/TOOLS/GPStool/uiview.lua"}, "log code freed")
     t.eq(r.run("exit"), 1, "EXIT ends the tool")
     budget(t, r, "telemetry")
+  end},
+
+  {"200 logs on the card: the newest listed, within the budgets", function(t)
+    local dir = tmpdir()
+    local newest, label = nil, nil
+    for i = 1, 200 do -- dates and times spread out, written in no particular order
+      local mo, day, hh, mm = 1 + i % 12, 1 + i % 28, i % 24, i % 60
+      local stamp = string.format("2026-%02d-%02d-%02d%02d00", mo, day, hh, mm)
+      write_log(dir, "Quad-" .. stamp .. ".csv",
+        {string.format('2026-01-01,10:00:00.000,-60,"AIR!",4.1,%d.000000 1.000000,9,16.0', i % 80)})
+      if not newest or stamp > newest then
+        newest, label = stamp, string.format("1. %02d-%02d %02d:%02d:00", mo, day, hh, mm)
+      end
+    end
+    local r = fake.load(tool(t), {logs_dir = dir})
+    r.init()
+    r.run(nil)
+    r.run("next"); r.run("enter")
+    t.ok(r.idle_until(label, 50), "the newest log first: " .. label)
+    os.execute('rm -rf "' .. dir .. '"')
+    budget(t, r, "200 logs")
+  end},
+
+  {"ten logs with long model names, all read: within the budgets", function(t)
+    local dir = tmpdir()
+    for d = 1, 28 do -- more than the list keeps
+      local name = string.format("MyVeryLongQuad1-2026-11-%02d-100000.csv", d)
+      write_log(dir, name, {string.format('2026-11-%02d,10:00:00.000,-60,"AIR!",4.1,-33.856784 151.215297,9,16.0', d)})
+    end
+    local r = fake.load(tool(t), {logs_dir = dir})
+    r.init()
+    r.run(nil)
+    r.run("next"); r.run("enter")
+    for _ = 1, 30 do r.run("next") end
+    t.ok(r.idle_until("10. 11-19 10:00:00", 50), "ten listed, the tenth newest last")
+    t.ok(r.has_text("MyVeryLongQuad1"), "the model name under it")
+    t.ok(r.idle_until("-33.85678, 151.21530", 500), "and read")
+    t.ok(r.idle_until("-33.85678, 151.21530", 500) and not r.has_text("..."), "all read")
+    t.ok(not r.has_text("11. 11-18 10:00:00"), "no eleventh")
+    os.execute('rm -rf "' .. dir .. '"')
+    budget(t, r, "ten logs")
   end},
 
   {"EdgeTX 2.8 (no dir()): asks for an update, telemetry still works", function(t)
     local r = fake.load(tool(t), {gps = {lat = 1.5, lon = 2.5}, firmware = "2.8.4"})
     r.init()
     r.run(nil)
-    t.ok(r.has_text("Logs need EdgeTX 2.9+"), "says what to do")
+    r.run("next"); r.run("enter")
+    t.ok(r.idle_until("Logs need EdgeTX 2.9+", 10), "says what to do")
     t.ok(r.has_text("this radio: 2.8.4"), "and what it has")
-    t.ok(r.has_text("1.50000,2.50000"), "telemetry")
+    t.ok(r.has_text("1.50000, 2.50000"), "telemetry")
     t.eq(r.run("exit"), 1)
   end},
 
-  {"logs: newest log read at start, older ones on request", function(t)
+  {"logs: shown on request, the newest ten", function(t)
     local dir = tmpdir()
-    write_log(dir, "Quad-2026-11-20-100000.csv", {'2026-11-20,10:00:00.000,-60,"AIR!",4.1,1.000000 2.000000,9,16.0'})
+    for d = 13, 23 do -- the oldest has a different position, and isn't listed
+      local gps = "5.000000 6.000000"
+      if d == 13 then gps = "1.000000 2.000000" end
+      local name = string.format("Quad-2026-11-%02d-100000.csv", d)
+      write_log(dir, name, {string.format('2026-11-%02d,10:00:00.000,-60,"AIR!",4.1,%s,9,16.0', d, gps)})
+    end
     local rows = {}
     for i = 1, 30 do
       rows[#rows + 1] = string.format('2026-11-24,09:%02d:00.000,-60,"AIR!",4.1,-33.856784 151.215297,9,16.0', i)
@@ -112,15 +163,21 @@ return {
     r.init()
     r.run(nil)
     t.ok(r.has_text("no GPS fix"), "no telemetry")
-    t.ok(r.has_text("1. 11-24 09:00 Quad"), "the newest log only, numbered")
-    t.ok(not r.has_text("2. 11-20 10:00 Quad"))
-    t.ok(r.idle_until("-33.85678,151.21530", 2000), "its newest fix, past the stretch without one")
+    t.ok(not r.has_text("1. 11-24 09:00:00") and r.sd_calls == 0, "no logs until asked")
+    r.run("next"); r.run("enter")
+    t.ok(r.idle_until("1. 11-24 09:00:00", 10), "the newest log, numbered, to the second")
+    t.ok(r.has_text("Quad"), "the model on the next line")
+    t.ok(math.floor(r.text_flags("1. 11-24 09:00:00") / r.SMLSIZE) % 2 == 1, "in the small font")
+    t.ok(r.idle_until("-33.85678, 151.21530", 2000), "its newest fix, past the stretch without one")
+    for _ = 1, 15 do r.run("next") end
+    t.ok(r.idle_until("5.00000, 6.00000", 2000), "the older logs read too")
+    t.ok(r.has_text("10. 11-15 10:00:00"), "the tenth is the last")
+    for _ = 1, 2000 do -- until every log is read
+      if #r.parts() == 2 then break end
+      r.run(nil)
+    end
     t.eq(r.parts(), {"/SCRIPTS/TOOLS/GPStool/ui.lua", "/SCRIPTS/TOOLS/GPStool/uiview.lua"}, "log code freed once reading is done")
-    r.run("next"); r.run("next")
-    t.ok(r.has_text("More"))
-    r.run("enter")
-    t.ok(r.idle_until("1.00000,2.00000", 200), "the older log, read on request")
-    t.ok(not r.has_text("More"), "no files left")
+    t.ok(not r.has_text("1.00000, 2.00000") and not r.has_text("11. 11-14 10:00:00"), "the eleventh isn't listed")
     os.execute('rm -rf "' .. dir .. '"')
     budget(t, r, "logs")
   end},

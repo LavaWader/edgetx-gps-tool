@@ -21,13 +21,16 @@ Applied guideline: `groundwork` @ `0ad2b84` (Guide: when to not add layer).
   - Memory to compile each shipped file: 30 KB. The original script, which compiled on the Boxer, measures 36 KB; the one-file tool measured 90 KB and didn't.
 - **Mutation testing:** `-- @mutant id: from => to` markers on core lines, run by `tools/mutate.lua` (`make mutate`).
 - **Deployment:** `tools/bundle.lua` builds `SCRIPTS/TOOLS/GPStool.lua` plus part files beside it in `SCRIPTS/TOOLS/GPStool/`, and `make` minifies them with luamin into `dist/`. Test-only modules aren't reachable from the entry point, so they don't ship.
-  - The parts are listed in `tools/bundle.lua`: `ui` (the list, always loaded) and `logs` (log reading). A part has several files when one would be too big to compile.
+  - The parts are listed in `tools/bundle.lua`: `ui` (the list, always loaded), `logs` (reading logs: file access, CSV, backward scan) and `listing` (keeping the newest names while the folder is read). A part has several files when one would be too big to compile.
+  - Nothing on the SD card is touched, and no log code is loaded, until *Show 10 last logs* is pressed.
+  - The list keeps only file names; `gps/core/logname.lua` makes a log's two title lines when it's drawn, for the rows on screen only.
+  - The folder listing is read `list_batch` names per call: `gps/infra/logfs.lua` keeps the `dir()` iterator between calls, and only the newest `max_files` names (2 × that at most, while reading) are ever held.
   - A part's file is loaded with `loadScript` when one of its modules is first required. The glue frees `logs` whenever `app.needs_logs(state)` says it isn't needed.
   - Core modules require log code inside functions, not at load time, so the bundle can keep it out of the main file.
 
 ## Deviations
 
-- `tool/core/entries.lua` holds state helpers shared by `app.lua` and `reading.lua`. The two were one module, and were split only so neither file is too big to compile on the radio.
+- `gps/core/logfiles.lua` `M.add` changes its accumulator in place, so a folder listing can be folded name by name from `dir()` without holding it whole. The accumulator is fresh per listing and only `gps/infra/logfs.lua` holds it.
 - `e2e/` and `tools/` sit outside layer directories. They shell out, read files and load the bundle, so they're test and build tooling, not app source.
 
 ## Known gaps
@@ -37,5 +40,6 @@ Applied guideline: `groundwork` @ `0ad2b84` (Guide: when to not add layer).
 - **Instruction limit per call is unconfirmed;** 10k is a target.
 - **Radio memory budget is unknown.** The Boxer showed "Free mem 56b" after an out-of-memory error, a reading after the failure rather than a budget.
 - **Log order:** comes from the dates in the file names, which come from the radio clock (a sample log showed `2000-01-01`).
+- **CSV fields are split at every comma:** EdgeTX's quoted text fields (the flight mode) hold no commas in the logs seen so far. One that did would shift the columns after it, and that row's GPS field wouldn't parse.
 - **Property tests:** no shrinking; the failing input is printed as generated.
 - **No CI workflow yet.**

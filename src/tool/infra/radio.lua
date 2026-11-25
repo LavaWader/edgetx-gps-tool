@@ -16,14 +16,12 @@ function M.draw(ops)
   for i = 1, #ops do
     local o = ops[i]
     if o.op == "text" then
-      if o.inv then lcd.drawText(o.x, o.y, o.s, INVERS) else lcd.drawText(o.x, o.y, o.s) end
-    elseif o.op == "frame" then
-      lcd.drawRectangle(o.x, o.y, o.w, o.h)
-    elseif o.op == "fill" then
+      local flags = 0 -- INVERS and SMLSIZE are separate bits
+      if o.inv then flags = flags + INVERS end
+      if o.small then flags = flags + SMLSIZE end
+      lcd.drawText(o.x, o.y, o.s, flags)
+    else
       lcd.drawFilledRectangle(o.x, o.y, o.w, o.h)
-    elseif o.op == "rects" then
-      local l = o.list
-      for k = 1, #l, 4 do lcd.drawFilledRectangle(l[k], l[k + 1], l[k + 2], l[k + 3]) end
     end
   end
 end

@@ -6,8 +6,9 @@ An EdgeTX tool (SYS → Tools) for black-and-white radios: lists your model's GP
 
 - **Install:** run `make` (builds and checks). Copy `dist/SCRIPTS/TOOLS/` into `SCRIPTS/TOOLS/` on the SD card: `GPStool.lua` and the `GPStool/` folder beside it, which holds the parts the tool loads as needed.
 - **Use:**
-  - Under the title *GPS positions*, the list shows *Telemetry* and the newest log (numbered from 1), each with its position. *More* adds five older logs.
-  - NEXT/PREV move (stopping at the ends), ENTER on *More* adds logs, EXIT closes the tool.
+  - The screen has two headings. *Telemetry* shows the live position. *Logs* has a *Show 10 last logs* button: the SD card isn't read until you press it.
+  - The button lists the ten newest logs (`max_files` in `src/tool/data/config.lua`) (numbered from 1), each as its date and time to the second and its model name (small font), then its last position.
+  - NEXT/PREV move (stopping at the ends), ENTER presses the button, EXIT closes the tool.
   - When there are no log rows, a note says why (for example *Logs need EdgeTX 2.9+*).
 - **Logs:** add an *SD Logs* special function (MDL → SPECIAL FUNCTIONS), and set the radio's date and time so the newest log is listed first.
 - **Develop:** `make` runs the lint, unit tests and end-to-end tests against the minified files. It needs `lua5.4`, `luac5.4` and `luamin`. `make mutate` checks that the tests catch the bugs marked in the code.

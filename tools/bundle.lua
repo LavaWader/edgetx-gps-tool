@@ -21,12 +21,16 @@ local PART_DIR = "/SCRIPTS/TOOLS/" .. NAME .. "/"
 -- "ui" is never unloaded: it's split off only so no file is too big to compile.
 local PARTS = {
   {name = "ui", files = {
-    {file = "ui", roots = {"tool.core.app", "tool.core.entries", "gps.core.fix"}},
+    {file = "ui", roots = {"tool.core.app", "gps.core.fix"}},
     {file = "uiview", roots = {"tool.core.view"}},
   }},
   {name = "logs", files = {
     {file = "logs", roots = {"tool.core.reading", "gps.infra.logfs"}},
+    {file = "csv", roots = {"gps.core.csv"}},
     {file = "logscan", roots = {"gps.core.logscan"}},
+  }},
+  -- Sorting the folder listing: needed only inside the call that handles it.
+  {name = "listing", files = {
     {file = "logfiles", roots = {"gps.core.logfiles"}},
   }},
 }

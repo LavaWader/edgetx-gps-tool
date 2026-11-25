@@ -15,7 +15,7 @@ function M.load(path, opts)
   local fb, texts = {}, {}
   local real_io = io
   local env = setmetatable({}, {__index = _G})
-  local radio = {gps = opts.gps, fb = fb, texts = texts, w = W, h = H, loads = {}}
+  local radio = {gps = opts.gps, fb = fb, texts = texts, w = W, h = H, loads = {}, sd_calls = 0}
   -- Each part runs in its own environment table, held weakly: while the
   -- part's functions are alive, so is its table.
   local alive = setmetatable({}, {__mode = "k"})
@@ -47,11 +47,11 @@ function M.load(path, opts)
       for i = 1, W * H do fb[i] = false end
       for i = #texts, 1, -1 do texts[i] = nil end
     end),
-    drawText = api(function(x, y, s) texts[#texts + 1] = {x = x, y = y, s = s} end),
+    drawText = api(function(x, y, s, flags) texts[#texts + 1] = {x = x, y = y, s = s, flags = flags or 0} end),
     drawFilledRectangle = api(fill),
     drawRectangle = function() end,
   }
-  env.LCD_W, env.LCD_H, env.INVERS = W, H, 1
+  env.LCD_W, env.LCD_H, env.INVERS, env.SMLSIZE = W, H, 1, 0x200
   env.EVT_VIRTUAL_ENTER, env.EVT_VIRTUAL_EXIT = KEYS.enter, KEYS.exit
   env.EVT_VIRTUAL_NEXT, env.EVT_VIRTUAL_PREV = KEYS.next, KEYS.prev
   env.getFieldInfo = function(name)
@@ -70,16 +70,22 @@ function M.load(path, opts)
   end
   -- opts.firmware = "2.8.4": no dir() and no fstat(), as on that version.
   env.getVersion = function() return opts.firmware or "2.10.0" end
-  env.dir = api(function(p)
-    if p ~= "/LOGS" or not opts.logs_dir then error("no such folder") end
+  -- dir() is native on the radio: the folder is read here, before the heap
+  -- baseline, and the iterator's own work isn't counted either.
+  local listing = {}
+  if opts.logs_dir then
     local h = real_io.popen('ls -1 "' .. opts.logs_dir .. '"')
-    local names = {}
-    for line in h:lines() do names[#names + 1] = line end
+    for line in h:lines() do listing[#listing + 1] = line end
     h:close()
+  end
+  env.dir = api(function(p)
+    radio.sd_calls = radio.sd_calls + 1
+    if p ~= "/LOGS" or not opts.logs_dir then error("no such folder") end
     local i = 0
-    return function() i = i + 1; return names[i] end
+    return api(function() i = i + 1; return listing[i] end)
   end)
   env.fstat = api(function(p)
+    radio.sd_calls = radio.sd_calls + 1
     local lp = local_path(p)
     local f = lp and real_io.open(lp, "rb")
     if not f then return nil end
@@ -91,6 +97,7 @@ function M.load(path, opts)
   -- EdgeTX's io: io.read(file, length), io.seek(file, offset).
   env.io = {
     open = function(p)
+      radio.sd_calls = radio.sd_calls + 1
       local lp = local_path(p)
       return lp and real_io.open(lp, "rb")
     end,
@@ -158,6 +165,13 @@ function M.load(path, opts)
   function radio.has_text(s)
     for _, t in ipairs(texts) do if t.s:match("^%s*(.-)%s*$") == s then return true end end
     return false
+  end
+
+  -- The flags some text was drawn with, or nil.
+  radio.SMLSIZE = env.SMLSIZE
+  function radio.text_flags(s)
+    for _, t in ipairs(texts) do if t.s:match("^%s*(.-)%s*$") == s then return t.flags end end
+    return nil
   end
 
   function radio.idle_until(s, limit)

@@ -1,4 +1,5 @@
 local logs = require("gps.core.logfiles")
+local logname = require("gps.core.logname")
 
 local function gen_names(rng)
   local names = {}
@@ -12,41 +13,52 @@ local function gen_names(rng)
     elseif kind == 4 then names[i] = model .. rng.int(1, 9) .. ".csv"
     else names[i] = model .. ".txt" end
   end
-  return {names = names, max = rng.int(1, 40)}
+  return {names = names, max = rng.int(1, 8)}
+end
+
+local function newest(names, max)
+  local acc = logs.newest(max)
+  for _, n in ipairs(names) do logs.add(acc, n) end
+  return acc
+end
+
+-- a is listed before b: newer, or as new and later by name.
+local function before(a, b)
+  local sa, sb = logs.stamp(a), logs.stamp(b)
+  return sa > sb or (sa == sb and a >= b)
 end
 
 return {
   {"names: with time, date only, no date, not CSV", function(t)
-    t.eq(logs.entry("Quad-2026-11-24-143201.csv"),
-      {name = "Quad-2026-11-24-143201.csv", stamp = "20261124143201", label = "11-24 14:32 Quad"})
-    t.eq(logs.entry("My-Quad-2026-11-24.csv"),
-      {name = "My-Quad-2026-11-24.csv", stamp = "20261124", label = "11-24 My-Quad"})
-    t.eq(logs.entry("notes.csv"), {name = "notes.csv", stamp = "", label = "notes"})
-    t.eq(logs.entry("photo.jpg"), nil)
+    t.eq(logs.stamp("Quad-2026-11-24-143201.csv"), "20261124143201")
+    t.eq({logname.lines("Quad-2026-11-24-143201.csv")}, {"11-24 14:32:01", "Quad"}, "seconds shown")
+    t.eq(logs.stamp("My-Quad-2026-11-24.csv"), "20261124")
+    t.eq({logname.lines("My-Quad-2026-11-24.csv")}, {"11-24", "My-Quad"})
+    t.eq(logs.stamp("notes.csv"), "")
+    t.eq({logname.lines("notes.csv")}, {"notes", ""})
+    t.eq({logname.lines("Quad-2026-11-24-1432.csv")}, {"Quad-2026-11-24-1432", ""}, "odd time: the name as is")
+    t.eq(logs.stamp("photo.jpg"), nil)
   end},
 
-  {"sorted list: only CSVs, newest first, capped, nothing invented", function(t)
-    t.forall(300, gen_names, function(c)
-      local list = logs.sort_desc(c.names, c.max)
+  {"newest list: only CSVs, newest first, capped, nothing invented, every name counted", function(t)
+    t.forall(400, gen_names, function(c)
+      local acc = newest(c.names, c.max)
+      local list = logs.result(acc)
+      t.eq(acc.seen, #c.names, "every name counted")
       local csv = 0
-      for _, n in ipairs(c.names) do if logs.entry(n) then csv = csv + 1 end end
+      for _, n in ipairs(c.names) do if logs.stamp(n) then csv = csv + 1 end end
       t.eq(#list, math.min(csv, c.max), "count")
-      for i = 2, #list do
-        local a, b = list[i - 1], list[i]
-        t.ok(a.stamp > b.stamp or (a.stamp == b.stamp and a.name >= b.name), "order at " .. i)
-      end
+      for i = 2, #list do t.ok(before(list[i - 1], list[i]), "order at " .. i) end
       local given = {}
       for _, n in ipairs(c.names) do given[n] = true end
-      for _, e in ipairs(list) do t.ok(given[e.name], "listed name was given") end
+      for _, n in ipairs(list) do t.ok(given[n], "listed name was given") end
       -- what was left out is no newer than the oldest kept
       local kept = {}
-      for _, e in ipairs(list) do kept[e.name] = true end
+      for _, n in ipairs(list) do kept[n] = true end
       local last = list[#list]
       for _, n in ipairs(c.names) do
-        local e = logs.entry(n)
-        if e and not kept[n] then
-          t.ok(last and (e.stamp < last.stamp or (e.stamp == last.stamp and e.name <= last.name)),
-            "left out " .. n .. " is older than every kept log")
+        if logs.stamp(n) and not kept[n] then
+          t.ok(last and before(last, n), "left out " .. n .. " is older than every kept log")
         end
       end
     end)
