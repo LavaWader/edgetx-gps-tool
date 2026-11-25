@@ -2,6 +2,8 @@
 
 An EdgeTX tool (SYS → Tools) for black-and-white radios: lists your model's GPS position from live telemetry and from SD card logs, as text.
 
+![The tool on a RadioMaster Boxer: the live position under Telemetry, then the newest log with its model name and last position](doc/img/boxer.jpg)
+
 **Status:** passes its headless tests. Log rows need EdgeTX 2.9 or newer (`dir()` and `fstat()` came in 2.9); on older firmware the list says so, and telemetry still works.
 
 - **Install:** download `GPStool-<version>.zip` from the [releases](https://github.com/LavaWader/edgetx-gps-tool/releases) and unzip it at the SD card's root. It holds `SCRIPTS/TOOLS/GPStool.lua` and the `GPStool/` folder beside it, with the parts the tool loads as needed. Replace both when updating.
