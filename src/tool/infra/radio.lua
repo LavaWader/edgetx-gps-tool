@@ -1,6 +1,9 @@
 -- Screen and keys through the EdgeTX API.
 local M = {}
 
+-- The radio's clock: 10 ms steps since it was switched on.
+function M.now() return getTime() end
+
 -- EdgeTX key event -> the names the core uses, or false.
 function M.key(event)
   if event == EVT_VIRTUAL_ENTER then return "enter" end

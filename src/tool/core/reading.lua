@@ -5,33 +5,10 @@
 -- need it, so the two are never loaded together.
 local function scan() return require("gps.core.logscan") end
 
-local with = require("tool.core.app").with
+local app = require("tool.core.app")
+local with, set, next_read = app.with, app.set, app.next_read
 
 local M = {}
-
--- A copy of s.entries with entry i replaced.
-local function set(s, i, e)
-  local list = {}
-  for k = 1, #s.entries do list[k] = s.entries[k] end
-  list[i] = e
-  return list
-end
-
--- Start reading the first pending log, unless one is being read already.
-local function next_read(s)
-  if s.reading then return s end
-  for i = 2, #s.entries do
-    local e = s.entries[i]
-    if e.status == "pending" then
-      local path = s.ctx.cfg.log_dir .. "/" .. e.name
-      return with(s, {
-        entries = set(s, i, with(e, {status = "reading"})), reading = i, path = path,
-        effect = {kind = "open", path = path, head = s.ctx.cfg.header_max},
-      })
-    end
-  end
-  return with(s, {effect = false})
-end
 
 local function finish(s, status, fix)
   local e = with(s.entries[s.reading], {status = status, fix = fix})

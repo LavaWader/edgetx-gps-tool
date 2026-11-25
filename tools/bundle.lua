@@ -25,7 +25,8 @@ local PARTS = {
     {file = "uiview", roots = {"tool.core.view"}},
   }},
   {name = "logs", files = {
-    {file = "logs", roots = {"tool.core.reading", "gps.infra.logfs"}},
+    {file = "logs", roots = {"tool.core.reading"}},
+    {file = "logfs", roots = {"gps.infra.logfs"}},
     {file = "csv", roots = {"gps.core.csv"}},
     {file = "logscan", roots = {"gps.core.logscan"}},
   }},

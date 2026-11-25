@@ -58,6 +58,9 @@ function M.load(path, opts)
     if name == "GPS" then return {id = 42} end
     return nil
   end
+  -- 10 ms steps; each run() call is taken to be 50 ms after the last
+  radio.time = 0
+  env.getTime = function() return radio.time end
   env.getValue = function(id)
     if id == 42 and radio.gps then return {lat = radio.gps.lat, lon = radio.gps.lon} end
     return 0
@@ -106,20 +109,31 @@ function M.load(path, opts)
     close = function(f) f:close() end,
   }
 
+  -- A script as EdgeTX's loadScript gives it by default: compiled to .luac
+  -- with debug info (line numbers, local names) stripped, which about halves
+  -- the code's memory (luadoc.edgetx.org, loadScript; mode "d" keeps it).
+  local function stripped(file, name, penv)
+    local f, err = loadfile(file, "t", penv)
+    if not f then return nil, err end
+    local bin = string.dump(f, true)
+    f = nil
+    return load(bin, name, "b", penv)
+  end
+
   -- Compiling is native on the radio. Loads are recorded in order.
   env.loadScript = api(function(p)
     if string.sub(p, 1, 9) ~= "/SCRIPTS/" then return nil, "not under /SCRIPTS: " .. p end
     radio.loads[#radio.loads + 1] = p
     local penv = setmetatable({}, {__index = env})
     alive[penv] = p
-    return loadfile(scripts .. "/" .. string.sub(p, 10), "t", penv)
+    return stripped(scripts .. "/" .. string.sub(p, 10), "=" .. p, penv)
   end)
 
   for i = 1, W * H do fb[i] = false end -- the fake's screen isn't the tool's memory
   collectgarbage("collect")
   local base_kb = collectgarbage("count")
   radio.base_kb = base_kb
-  local tool = assert(loadfile(path, "t", env))()
+  local tool = assert(stripped(path, "=" .. path, env))()
   radio.tool = tool
   radio.max_instructions, radio.max_kb, radio.max_peak_kb = 0, 0, 0
 
@@ -158,7 +172,10 @@ function M.load(path, opts)
   end
 
   function radio.init() return measured(tool.init, "init") end
-  function radio.run(key) return measured(tool.run, key or "tick", KEYS[key] or 0) end
+  function radio.run(key)
+    radio.time = radio.time + 5
+    return measured(tool.run, key or "tick", KEYS[key] or 0)
+  end
 
   -- Whether some text on screen reads s, ignoring the spaces that pad a
   -- selected row into a bar.

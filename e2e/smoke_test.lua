@@ -65,7 +65,7 @@ return {
       n = n + 1
     end
     h:close()
-    t.eq(n, 7, "the tool and its six part files")
+    t.eq(n, 8, "the tool and its seven part files")
     t.ok(string.find(string.sub(read(tool(t)), 1, 200), "TNS|", 1, true), "tool name near the start")
     t.ok(string.find(read(tool(t)), "^%-%- GPS tool for EdgeTX, https://github.com/LavaWader/edgetx%-gps%-tool"),
       "the repo in the header comment")
@@ -81,6 +81,9 @@ return {
     r.gps = {lat = -33.856784, lon = 151.215297}
     r.run(nil)
     t.ok(r.has_text("-33.85678, 151.21530"), "follows telemetry")
+    r.run("enter")
+    t.ok(r.has_text("reading...") and not r.has_text("-33.85678, 151.21530"), "ENTER: reading...")
+    t.ok(r.idle_until("-33.85678, 151.21530", 20), "then the position again")
     r.gps = nil
     r.run(nil)
     t.ok(r.has_text("no GPS fix"), "fix lost")
@@ -128,7 +131,7 @@ return {
     t.ok(r.idle_until("10. 11-19 10:00:00", 50), "ten listed, the tenth newest last")
     t.ok(r.has_text("MyVeryLongQuad1"), "the model name under it")
     t.ok(r.idle_until("-33.85678, 151.21530", 500), "and read")
-    t.ok(r.idle_until("-33.85678, 151.21530", 500) and not r.has_text("..."), "all read")
+    t.ok(r.idle_until("-33.85678, 151.21530", 500) and not r.has_text("reading..."), "all read")
     t.ok(not r.has_text("11. 11-18 10:00:00"), "no eleventh")
     os.execute('rm -rf "' .. dir .. '"')
     budget(t, r, "ten logs")
@@ -180,6 +183,11 @@ return {
     end
     t.eq(r.parts(), {"/SCRIPTS/TOOLS/GPStool/ui.lua", "/SCRIPTS/TOOLS/GPStool/uiview.lua"}, "log code freed once reading is done")
     t.ok(not r.has_text("1.00000, 2.00000") and not r.has_text("11. 11-14 10:00:00"), "the eleventh isn't listed")
+    for _ = 1, 15 do r.run("prev") end
+    r.run("next")
+    r.run("enter")
+    t.ok(r.has_text("1. 11-24 09:00:00") and not r.has_text("-33.85678, 151.21530"), "ENTER on a log: read again")
+    t.ok(r.idle_until("-33.85678, 151.21530", 2000), "its position again")
     os.execute('rm -rf "' .. dir .. '"')
     budget(t, r, "logs")
   end},

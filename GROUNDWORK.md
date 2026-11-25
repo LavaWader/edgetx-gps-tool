@@ -17,7 +17,7 @@ Applied guideline: `groundwork` @ `0ad2b84` (Guide: when to not add layer).
 - **UI state:** `tool/core/app.lua` is `update(state, msg)`. I/O requests are data in `state.effect`, and the glue performs at most one per `run()` call, then feeds the result back.
 - **Budgets, checked by `e2e/smoke_test.lua` on the built files** (desktop Lua 5.4, so ratios matter more than exact numbers):
   - Instructions per `run()` call: 10k.
-  - Heap peak, garbage included, sampled inside every call: 60 KB. The original QR script peaks at 93 KB on this measure and crashed the radio; the first version of this tool peaked at 188 KB. The glue runs a full garbage collection at the end of every `run()`.
+  - Heap peak, garbage included, sampled inside every call: 60 KB. The fake loads code stripped of debug info, as EdgeTX's `loadScript` does by default (it compiles a `.luac`); that about halves code memory. The first run after copying the files compiles from source and may need more. The original QR script peaks at 93 KB on this measure and crashed the radio; the first version of this tool peaked at 188 KB. The glue runs a full garbage collection at the end of every `run()`.
   - Memory to compile each shipped file: 30 KB. The original script, which compiled on the Boxer, measures 36 KB; the one-file tool measured 90 KB and didn't.
 - **Mutation testing:** `-- @mutant id: from => to` markers on core lines, run by `tools/mutate.lua` (`make mutate`).
 - **Deployment:** `tools/bundle.lua` builds `SCRIPTS/TOOLS/GPStool.lua` plus part files beside it in `SCRIPTS/TOOLS/GPStool/`, and `make` minifies them with luamin into `dist/`. Test-only modules aren't reachable from the entry point, so they don't ship.

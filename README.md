@@ -10,7 +10,7 @@ An EdgeTX tool (SYS → Tools) for black-and-white radios: lists your model's GP
 - **Use:**
   - The screen has two headings. *Telemetry* shows the live position. *Logs* has a *Show 10 last logs* button: the SD card isn't read until you press it.
   - The button lists the ten newest logs (`max_files` in `src/tool/data/config.lua`) (numbered from 1), each as its date and time to the second and its model name (small font), then its last position.
-  - NEXT/PREV move (stopping at the ends), ENTER presses the button, EXIT closes the tool.
+  - NEXT/PREV move (stopping at the ends), EXIT closes the tool. ENTER presses the button, or reads the selected row again: a log's file, or telemetry (it shows *reading...* for half a second).
   - When there are no log rows, a note says why (for example *Logs need EdgeTX 2.9+*).
 - **Logs:** add an *SD Logs* special function (MDL → SPECIAL FUNCTIONS), and set the radio's date and time so the newest log is listed first.
 - **Develop:** `make` runs the lint, unit tests and end-to-end tests against the minified files. It needs `lua5.4`, `luac5.4` and `luamin`. `make mutate` checks that the tests catch the bugs marked in the code.

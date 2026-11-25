@@ -64,7 +64,12 @@ local function drawn(s, str)
   end
 end
 
-local function tick(s, key, telem) return app.update(s, {kind = "tick", key = key or false, telem = telem or 0}) end
+-- A tick 100 ms after the last one.
+local clock = 0
+local function tick(s, key, telem)
+  clock = clock + 10
+  return app.update(s, {kind = "tick", key = key or false, telem = telem or 0, now = clock})
+end
 
 -- Feed effects until none is pending (the list's background reading).
 local function settle(s, env)
@@ -84,16 +89,19 @@ end
 local function check(t, s, w, h)
   t.ok(s.sel >= 1 and s.sel <= app.rows(s), "selection in range")
   t.eq(s.entries[1].kind, "telemetry", "telemetry first")
-  local reading = 0
+  local reading, pending = 0, 0
   for i = 2, #s.entries do
     local e = s.entries[i]
     t.eq(e.name, s.files[i - 1], "entries follow the files, newest first")
     if e.status == "reading" then reading = reading + 1; t.eq(s.reading, i, "reading index") end
+    if e.status == "pending" then pending = pending + 1 end
     if e.status == "found" then t.ok(fix.valid(e.fix.lat, e.fix.lon), "a found fix is valid") end
   end
   t.ok(reading <= 1, "one log at a time")
+  t.ok(pending == 0 or reading == 1, "a log waits only while another is read")
+  t.ok(not s.telem_wait or s.telem == false, "no position while telemetry is read again")
   t.eq(s.log_note ~= false, s.files ~= false and #s.files == 0, "a note exactly when there are no log entries")
-  if reading == 1 then t.ok(s.effect, "reading only with I/O pending") end
+  if s.reading then t.ok(s.effect, "reading only with I/O pending") end
   t.eq(app.needs_logs(s), s.effect ~= false, "log code needed exactly while I/O is pending")
   t.eq(app.needs_listing(s), s.effect ~= false and s.effect.kind == "list", "listing code only while listing")
   t.ok(s.files ~= false or not s.effect or s.effect.kind == "list", "no log opened before the folder is listed")
@@ -169,7 +177,8 @@ return {
     t.ok(drawn(s, "Telemetry") and drawn(s, "Logs") and drawn(s, "Show 5 last logs"), "two headings, the button")
     t.ok(not drawn(s, "Show 5 last logs").inv, "telemetry selected, not the button")
     s = tick(s, "enter")
-    t.eq(s.effect, false, "ENTER on telemetry reads nothing")
+    t.eq(s.effect, false, "ENTER on telemetry reads no file")
+    for _ = 1, 6 do s = tick(s) end -- past its "reading..."
     s = tick(tick(tick(s, "next"), "next"), "next")
     t.eq(s.sel, 2, "stops at the button")
     s = tick(s, "enter")
@@ -187,16 +196,28 @@ return {
     t.eq(s.sel, 1, "stops at the top")
     for _ = 1, 10 do s = tick(s, "next") end
     t.eq(s.sel, 6, "stops at the last log")
-    t.ok(tick(s, "enter") == s, "ENTER on a log does nothing")
+    s = tick(s, "enter")
+    t.eq(s.entries[6].status, "reading", "ENTER on a log reads it again")
+    t.eq(s.entries[6].fix, false, "its old position cleared")
+    t.ok(tick(s, "enter") == s, "ENTER again while it's read does nothing")
+    s = settle(s, env)
+    t.eq(s.entries[6].fix.lat, 4.5, "read again")
   end},
 
-  {"ENTER on an entry changes nothing; telemetry follows the live value", function(t)
+  {"telemetry follows the live value; ENTER shows reading... for a moment", function(t)
     local s = app.init(gen_cfg(t.rng), 128, 64)
-    local s2 = tick(s, "enter", 0)
-    t.ok(s2 == s, "unchanged")
-    s = tick(s, false, {lat = 54.687156, lon = 25.279651})
+    local fix = {lat = 54.687156, lon = 25.279651}
+    s = tick(s, false, fix)
     t.eq(s.telem, {lat = 54.687156, lon = 25.279651})
     t.ok(drawn(s, "54.68716, 25.27965"), "the live position")
+    s = tick(s, "enter", fix)
+    t.eq(s.telem, false, "cleared")
+    t.ok(drawn(s, "reading...") and not drawn(s, "54.68716, 25.27965"), "reading...")
+    t.eq(s.effect, false, "no I/O")
+    for _ = 1, 3 do s = tick(s, false, fix) end
+    t.ok(drawn(s, "reading..."), "still, 300 ms later")
+    for _ = 1, 3 do s = tick(s, false, fix) end
+    t.ok(drawn(s, "54.68716, 25.27965") and not drawn(s, "reading..."), "then the live value again")
     s = tick(s, false, 0)
     t.eq(s.telem, false, "no fix, no position")
     s = tick(s, "exit")
@@ -245,7 +266,7 @@ return {
     local s = tick(show_logs(app.init(cfg, 128, 64), env), "prev")
     t.ok(drawn(s, "1. 11-24 09:30:15").small, "date and time, small font")
     t.ok(drawn(s, "MyVeryLongQuad1").small, "the whole model name under it")
-    t.ok(not drawn(s, "Not found").small, "the position line in the normal font")
+    t.ok(not drawn(s, "No location").small, "the position line in the normal font")
     s = tick(tick(s, "next"), "next")
     t.ok(drawn(s, "2. AVeryLongFileNameWithoutAnyDa"), "another name: the first 32 characters")
     t.ok(drawn(s, "teInIt"), "and the rest on the next line")
@@ -275,7 +296,7 @@ return {
     t.eq(#ops, 10, "one log under the headings, and the next one's first line")
     t.eq(ops[7], {op = "text", x = 0, y = 30, s = "1. 11-08 12:00:00", inv = false, small = true}, "logs numbered from 1")
     t.eq(ops[8], {op = "text", x = 0, y = 38, s = " Quad", inv = false, small = true}, "the model under it")
-    t.eq(ops[9], {op = "text", x = 0, y = 46, s = "Not found", inv = false, small = false})
+    t.eq(ops[9], {op = "text", x = 0, y = 46, s = "No location", inv = false, small = false})
     t.eq(ops[10], {op = "text", x = 0, y = 56, s = "2. 11-07 12:00:00", inv = false, small = true}, "part of the next")
     s = tick(s, "next")
     ops = view.ops(s)

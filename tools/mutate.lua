@@ -52,7 +52,7 @@ local function workdir()
   local h = io.popen("mktemp -d")
   local d = h:read("*l")
   h:close()
-  assert(quiet("cp -r src tools Makefile " .. d .. "/"))
+  assert(quiet("cp -r src tools e2e Makefile " .. d .. "/"))
   return d
 end
 

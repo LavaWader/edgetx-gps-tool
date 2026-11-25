@@ -38,7 +38,8 @@ local function run(event)
     state = app.update(state, perform[state.effect.kind](state.effect))
     collectgarbage() -- the I/O's garbage (a chunk, its lines) goes before the rest
   end
-  state = app.update(state, {kind = "tick", key = radio.key(event), telem = telemetry.read(cfg.gps_sensor)})
+  state = app.update(state, {kind = "tick", key = radio.key(event), telem = telemetry.read(cfg.gps_sensor),
+                             now = radio.now()})
   if not app.needs_logs(state) then unload("logs") end
   if not app.needs_listing(state) then unload("listing") end
   -- while a log is read its code is in memory too: draw on a clean heap

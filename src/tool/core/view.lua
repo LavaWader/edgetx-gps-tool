@@ -19,7 +19,7 @@ local M = {}
 local CHAR_W, SMALL_W, LINE, SMALL_H, GAP, HEAD = 6, 4, 8, 6, 2, 10
 M.CHAR_W, M.SMALL_W = CHAR_W, SMALL_W
 
-local STATUS = {pending = "...", reading = "reading...", none = "Not found", error = "Can't read"}
+local STATUS = {pending = "...", reading = "reading...", none = "No location", error = "Can't read"}
 
 local coords = require("gps.core.fix").text
 local names = require("gps.core.logname").lines
@@ -51,6 +51,7 @@ local function row_lines(s, i, chars)
   end
   local e = s.entries[i]
   if e.kind == "telemetry" then
+    if s.telem_wait then return {"reading..."} end
     if s.telem then return {coords(s.telem)} end
     return {"no GPS fix"}
   end

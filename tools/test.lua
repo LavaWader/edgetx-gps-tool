@@ -36,7 +36,7 @@ if not bit32 then
   ]])()
 end
 
-package.path = root .. "/src/?.lua;e2e/?.lua;" .. package.path
+package.path = root .. "/src/?.lua;" .. root .. "/e2e/?.lua;" .. package.path
 
 -- MINSTD Lehmer generator: plain arithmetic, so it behaves the same on 5.2 and 5.4.
 local function new_rng(s)
