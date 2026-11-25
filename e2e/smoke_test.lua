@@ -67,6 +67,8 @@ return {
     h:close()
     t.eq(n, 7, "the tool and its six part files")
     t.ok(string.find(string.sub(read(tool(t)), 1, 200), "TNS|", 1, true), "tool name near the start")
+    t.ok(string.find(read(tool(t)), "^%-%- GPS tool for EdgeTX, https://github.com/LavaWader/edgetx%-gps%-tool"),
+      "the repo in the header comment")
   end},
 
   {"telemetry: the live position, following it; no /LOGS says why", function(t)

@@ -42,4 +42,3 @@ Applied guideline: `groundwork` @ `0ad2b84` (Guide: when to not add layer).
 - **Log order:** comes from the dates in the file names, which come from the radio clock (a sample log showed `2000-01-01`).
 - **CSV fields are split at every comma:** EdgeTX's quoted text fields (the flight mode) hold no commas in the logs seen so far. One that did would shift the columns after it, and that row's GPS field wouldn't parse.
 - **Property tests:** no shrinking; the failing input is printed as generated.
-- **No CI workflow yet.**

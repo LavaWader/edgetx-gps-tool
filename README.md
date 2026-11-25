@@ -4,7 +4,9 @@ An EdgeTX tool (SYS → Tools) for black-and-white radios: lists your model's GP
 
 **Status:** passes its headless tests. Log rows need EdgeTX 2.9 or newer (`dir()` and `fstat()` came in 2.9); on older firmware the list says so, and telemetry still works.
 
-- **Install:** run `make` (builds and checks). Copy `dist/SCRIPTS/TOOLS/` into `SCRIPTS/TOOLS/` on the SD card: `GPStool.lua` and the `GPStool/` folder beside it, which holds the parts the tool loads as needed.
+- **Install:** download `GPStool-<version>.zip` from the [releases](https://github.com/LavaWader/edgetx-gps-tool/releases) and unzip it at the SD card's root. It holds `SCRIPTS/TOOLS/GPStool.lua` and the `GPStool/` folder beside it, with the parts the tool loads as needed. Replace both when updating.
+  - From source: run `make` (builds and checks), then copy `dist/SCRIPTS/TOOLS/` into `SCRIPTS/TOOLS/` on the SD card.
+- **Release:** push a tag `v*` (e.g. `git tag v1.0.0 && git push origin v1.0.0`). `.github/workflows/build.yml` runs every check, including `make mutate` and the unit tests on Lua 5.2, then publishes the release with the zip. Pushes and pull requests get the same checks, and the zip as a run artifact.
 - **Use:**
   - The screen has two headings. *Telemetry* shows the live position. *Logs* has a *Show 10 last logs* button: the SD card isn't read until you press it.
   - The button lists the ten newest logs (`max_files` in `src/tool/data/config.lua`) (numbered from 1), each as its date and time to the second and its model name (small font), then its last position.

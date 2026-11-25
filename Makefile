@@ -19,12 +19,14 @@ ifneq ($(LUA52),)
 endif
 
 # dist/SCRIPTS/ goes onto the SD card's SCRIPTS/: bundled into build/, then
-# each file minified. (luamin reads stdin: `luamin -f` hangs on recent Node.)
+# each file minified, keeping its first line (a comment saying what it is and
+# where it's from; luamin drops comments). luamin reads stdin: `luamin -f`
+# hangs on recent Node.
 dist:
 	rm -rf build dist
 	$(LUA) tools/bundle.lua src build
 	cd build && for f in $$(find SCRIPTS -name '*.lua'); do \
-	  mkdir -p ../dist/$$(dirname $$f) && $(LUAMIN) -c < $$f > ../dist/$$f || exit 1; \
+	  mkdir -p ../dist/$$(dirname $$f) && { head -n 1 $$f && $(LUAMIN) -c < $$f; } > ../dist/$$f || exit 1; \
 	done
 
 e2e: dist
