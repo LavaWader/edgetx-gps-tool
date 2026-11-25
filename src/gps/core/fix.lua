@@ -16,8 +16,7 @@ function M.from_telemetry(v)
   return { lat = v.lat, lon = v.lon }
 end
 
--- "lat, lon" with 5 decimals (about 1 m): the longest, "-90.00000, -180.00000",
--- is 21 characters, a whole 128 px line in the normal font (so no indent).
+-- "lat, lon" to 5 decimals (about 1 m), at most 21 characters: a 128 px line in the normal font.
 function M.text(f) return string.format("%.5f, %.5f", f.lat, f.lon) end
 
 return M

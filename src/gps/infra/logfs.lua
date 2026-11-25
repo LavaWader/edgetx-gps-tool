@@ -1,5 +1,5 @@
--- SD card access through the EdgeTX file API. All operations are read-only
--- and idempotent; each opens and closes the file, so nothing is left open.
+-- SD card access through the EdgeTX file API, read-only. Each file is opened
+-- and closed in one call, so nothing is left open.
 -- Unverified on a real radio yet (see GROUNDWORK.md, known gaps).
 local M = {}
 
@@ -7,11 +7,10 @@ local M = {}
 -- stays open between calls, so a big folder is read a batch at a time.
 local listing = false
 
--- The newest max log files in a folder, read at most batch names per call:
--- returns "more" until done, then {list = names newest first, seen = names
--- in the folder}, or nil and why. Only the newest are kept, so the whole
--- listing is never in memory. Why is "no_dir" (plus the firmware version)
--- when the firmware has no dir(): it came in EdgeTX 2.9.
+-- The newest max log names in path, batch per call: "more" until done, then {list, seen = names in it}.
+-- idempotent: no, a call continues the listing in progress (dir()'s iterator is kept between calls)
+-- fails: nil, "no_dir", firmware version (no dir() before EdgeTX 2.9); nil, error text
+-- undo: none, read-only
 function M.list(path, max, batch)
   if type(dir) ~= "function" then
     local ver = false
@@ -40,7 +39,10 @@ function M.list(path, max, batch)
   return r
 end
 
--- len bytes starting at offset, or nil when the file can't be opened.
+-- len bytes starting at offset.
+-- idempotent: yes
+-- fails: nil (can't open); fewer bytes at the file's end
+-- undo: none, read-only
 function M.read(path, offset, len)
   local f = io.open(path, "r")
   if not f then return nil end
@@ -50,7 +52,10 @@ function M.read(path, offset, len)
   return s
 end
 
--- File size and its first n bytes, or nil.
+-- File size and its first n bytes.
+-- idempotent: yes
+-- fails: nil (no fstat() before EdgeTX 2.9, or no such file)
+-- undo: none, read-only
 function M.open(path, n)
   if type(fstat) ~= "function" then return nil end
   local info = fstat(path)

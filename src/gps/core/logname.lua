@@ -3,8 +3,7 @@
 -- drawn, so the list only keeps file names.
 local M = {}
 
--- Two lines: "YYYY-MM-DD HH:MM:SS" (or "YYYY-MM-DD") and the model name. A name in
--- another shape is the first line as is (without ".csv"), the second empty.
+-- "YYYY-MM-DD[ HH:MM:SS]" and the model, or for a name in another shape: itself without ".csv", and "".
 function M.lines(name)
   local base = string.gsub(name, "%.[cC][sS][vV]$", "")
   local model, date, rest = string.match(base, "^(.-)%-(%d%d%d%d%-%d%d%-%d%d)(.*)$")

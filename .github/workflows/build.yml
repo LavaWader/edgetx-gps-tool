@@ -1,4 +1,4 @@
-# Builds the tool and runs every check (formatting, lint, unit tests on Lua 5.4
+# Builds the tool and runs every check (formatting, lint, copied code, unit tests on Lua 5.4
 # and 5.2, the end-to-end tests on the minified build, mutation testing). A pushed tag
 # v* also publishes a release with the zip to unpack onto the SD card.
 name: build
@@ -22,11 +22,11 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Lua and luamin
+      - name: Install Lua, luamin and jscpd
         run: |
           sudo apt-get update
           sudo apt-get install -y lua5.4 lua5.2 zip
-          npm install -g luamin@1.0.4
+          npm install -g luamin@1.0.4 jscpd@4.0.5
 
       # The formatter is lua-language-server's (the editor's): the same version
       # as on the development machine, or the two may format differently.

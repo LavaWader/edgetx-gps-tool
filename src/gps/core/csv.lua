@@ -23,13 +23,11 @@ local function trim_cr(s)
   return s
 end
 
--- The first `upto` fields of a CSV line, split at commas. EdgeTX quotes its
--- text fields (the flight mode, e.g. "AIR!"), but they hold no commas, so a
--- plain split finds the same columns; quotes are kept. Stops early, so a long
--- row costs only as much as the columns asked for.
+-- The first `upto` fields of a line split at commas, stopping there so a long row costs only what's asked.
 function M.fields(line, upto)
   local out, pos = {}, 1
   for n = 1, upto do
+    -- EdgeTX quotes text fields ("AIR!") but they hold no commas; quotes are kept
     local c = string.find(line, ",", pos, true)
     if not c then
       out[n] = string.sub(line, pos)
@@ -41,7 +39,7 @@ function M.fields(line, upto)
   return out
 end
 
--- Column positions from the header line. Needs the whole first line.
+-- Column positions from the header, which must be a whole first line.
 function M.header(text)
   local nl = string.find(text, "\n", 1, true)
   if not nl then return nil, "no_header" end
@@ -53,8 +51,7 @@ function M.header(text)
   return nil, "no_gps"
 end
 
--- A data row's fix, or nil. EdgeTX writes the GPS column as "lat lon" and
--- leaves it empty while there is no fix.
+-- A data row's fix from its "lat lon" GPS column, or nil (EdgeTX leaves it empty before a fix).
 function M.parse_row(line, cols)
   local g = M.fields(trim_cr(line), cols.gps)[cols.gps]
   if not g then return nil end

@@ -10,7 +10,8 @@ local function gen_cfg(rng)
     max_files = rng.int(1, 6),
     list_batch = rng.int(1, 5),
     header_max = 4096,
-    chunk = rng.int(1, 64)
+    chunk = rng.int(1, 64),
+    line_max = 4096
   }
 end
 

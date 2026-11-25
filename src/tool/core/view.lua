@@ -48,9 +48,7 @@ local function row_h(s, i)
   return LOG_H
 end
 
--- The lines of row i, and how many of them are in the small font. Logs are
--- numbered from 1, newest first. A name that isn't EdgeTX's carries on to
--- the second line.
+-- Row i's lines (logs numbered from 1) and how many are small; a name not EdgeTX's runs onto line 2.
 local function row_lines(s, i, chars)
   if i > #s.entries then
     if s.effect then return { "Listing logs..." } end
@@ -73,8 +71,7 @@ local function row_lines(s, i, chars)
   return { first, " " .. second, line }, 2 -- @mutant small_name: line }, 2 => line }, 0
 end
 
--- Scrolled to the highest place a heading, the warning or a row starts that
--- still shows the selected row whole: as much as fits above it stays on screen.
+-- The scroll: the highest heading, warning or row start that still shows the selected row whole.
 local function offset(s, h)
   local need, top = row_y(s, s.sel) + row_h(s, s.sel) - h, first_row(s)
   if need <= 0 then return 0 end
@@ -101,8 +98,7 @@ function M.ops(s)
       out[#out + 1] = { op = "fill", x = 0, y = y + LINE, w = w, h = 1 }
     end
   end
-  -- Only rows on screen get their text made (row false: the lines given).
-  -- The row after the last whole one shows the lines of it that fit.
+  -- Draws a row on screen (row false: the lines given); one cut by the bottom shows the lines that fit.
   local function block(y, bh, i, lines)
     y = y - off
     if y < 0 or y + SMALL_H > h then return end

@@ -2,7 +2,7 @@
 -- in fixed-size chunks, so each call does a bounded amount of work.
 --
 --   local cols = csv.header(first_bytes)      -- gps/core/csv.lua: columns, or nil, why
---   local st = M.start(file_size, chunk)
+--   local st = M.start(file_size, chunk, line_max)
 --   while not st.done do
 --     local offset, len = M.request(st)       -- caller reads these bytes
 --     st = M.feed(st, bytes, cols)
@@ -16,13 +16,14 @@ local csv = require("gps.core.csv")
 local M = {}
 
 
-function M.start(size, chunk)
+function M.start(size, chunk, line_max)
   return {
     size = size,
     chunk = chunk,
+    line_max = line_max,
     next_end = size,
-    carry = "",
-    tail = true,
+    carry = "",  -- the start of the oldest line read so far: its beginning isn't read yet
+    tail = true, -- carry is still the file's unterminated end
     found = false,
     done = size <= 0,
     err = false
@@ -36,13 +37,13 @@ function M.request(st)
   return off, st.next_end - off
 end
 
--- carry: the start of the oldest line seen so far, whose beginning lies in
--- the part not read yet. tail: carry is still the file's unterminated end.
+-- The state after reading the bytes M.request asked for.
 function M.feed(st, text, cols)
   local off, len = M.request(st)
   local nxt = {
     size = st.size,
     chunk = st.chunk,
+    line_max = st.line_max,
     next_end = off,
     carry = "",
     tail = false,
@@ -68,6 +69,8 @@ function M.feed(st, text, cols)
   end
   if off == 0 then
     nxt.done = true
+  elseif #segs[1] > st.line_max then -- @mutant line_cap: #segs[1] > st.line_max => false
+    nxt.done, nxt.err = true, "line_too_long"
   else
     nxt.carry = segs[1]
     nxt.tail = st.tail and k == 1

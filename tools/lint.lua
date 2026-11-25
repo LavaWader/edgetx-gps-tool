@@ -7,14 +7,13 @@
 local SRC = arg[1] or "src"
 local LUAC = os.getenv("LUAC") or "luac5.4"
 
-local LAYERS = { core = true, data = true, infra = true, saga = true, glue = true }
+local LAYERS = { core = true, data = true, infra = true, glue = true }
 -- Which layers a file in each layer may require.
 local MAY_REQUIRE = {
   core = { core = true },
   data = { core = true, data = true },
   infra = { core = true, infra = true },
-  saga = { core = true, infra = true, saga = true },
-  glue = { core = true, data = true, infra = true, saga = true, glue = true },
+  glue = { core = true, data = true, infra = true, glue = true },
 }
 -- The only globals core and data may touch: pure standard library.
 -- tostring is left out on purpose: it formats numbers differently on 5.2 and 5.4.
@@ -33,6 +32,12 @@ local BANNED_OPS = {}
 for op in ("IDIV IDIVK BAND BANDK BOR BORK BXOR BXORK SHL SHR SHLI SHRI BNOT"):gmatch("%S+") do
   BANNED_OPS[op] = true
 end
+
+-- The comment right above a function: one sentence of at most this many
+-- characters (the "--" and indentation not counted).
+local COMMENT_MAX = 120
+-- An infra operation's contract lines, which don't count toward it.
+local CONTRACT_KEYS = { idempotent = true, fails = true, undo = true }
 
 local errors = 0
 local function report(file, msg)
@@ -87,6 +92,41 @@ local function strip(src, keep_strings)
   return table.concat(out)
 end
 
+local function defines_function(line)
+  return line:match("^%s*local%s+function%f[^%w_]") or line:match("^%s*function%f[^%w_]")
+      or line:match("^%s*local%s+[%w_]+%s*=%s*function%s*%(")
+      or line:match("^%s*[%w_.:%[%]\"]+%s*=%s*function%s*%(")
+end
+
+-- The comment block right above each function, as one line of text. A block
+-- starting on the file's first line is the module's header, not a function's.
+local function function_comments(src)
+  local lines = {}
+  for l in (src .. "\n"):gmatch("([^\n]*)\n") do lines[#lines + 1] = l end
+  local found = {}
+  for i, l in ipairs(lines) do
+    local j = i - 1
+    while j >= 1 and lines[j]:match("^%s*%-%-") and not lines[j]:match("^%s*%-%-%[=*%[") do j = j - 1 end
+    if defines_function(l) and j < i - 1 and j >= 1 then
+      local parts = {}
+      for k = j + 1, i - 1 do
+        local text = lines[k]:match("^%s*%-%-+%s?(.-)%s*$")
+        local key = text:match("^(%a+):")
+        if not (key and CONTRACT_KEYS[key]) then parts[#parts + 1] = text end
+      end
+      found[#found + 1] = { line = i, text = table.concat(parts, " ") }
+    end
+  end
+  return found
+end
+
+local function sentences(text)
+  local t = text:gsub("e%.g%.", "eg"):gsub("i%.e%.", "ie")
+  local n = 1
+  for _ in t:gmatch("[%.%?!]%s+%S") do n = n + 1 end
+  return n
+end
+
 local p = io.popen('find "' .. SRC .. '" -type f -name "*.lua" | sort')
 local files = {}
 for line in p:lines() do files[#files + 1] = line end
@@ -101,7 +141,7 @@ for _, file in ipairs(files) do
 
   -- 1. Every file sits directly in exactly one layer directory.
   if not layer or not LAYERS[layer] then
-    report(file, "not inside a layer directory (core/data/infra/saga/glue)")
+    report(file, "not inside a layer directory (core/data/infra/glue)")
     layer = nil
   end
   for k = 1, #segs - 2 do
@@ -134,6 +174,15 @@ for _, file in ipairs(files) do
   if bare:find("//", 1, true) then report(file, "integer division '//' is Lua 5.3+") end
   if bare:find("<%s*const%s*>") or bare:find("<%s*close%s*>") then report(file, "<const>/<close> are Lua 5.4") end
   if bare:find("%f[%w_]goto%f[^%w_]") then report(file, "goto is not supported by luamin") end
+
+  -- 5. A function's comment says one thing: more means it does more than one.
+  for _, c in ipairs(function_comments(src)) do
+    local where = "line " .. c.line .. ": "
+    if sentences(c.text) > 1 then report(file, where .. "comment above a function has more than one sentence") end
+    if #c.text > COMMENT_MAX then
+      report(file, where .. "comment above a function is " .. #c.text .. " characters (max " .. COMMENT_MAX .. ")")
+    end
+  end
 
   -- 4. Bytecode: global access and banned opcodes.
   local lp = io.popen(LUAC .. ' -p -l -l "' .. file .. '" 2>&1')

@@ -4,8 +4,7 @@ local M = {}
 -- The radio's clock: 10 ms steps since it was switched on.
 function M.now() return getTime() end
 
--- The year on the radio's date clock (EdgeTX resets it to 2000 when the
--- clock battery is flat), or false if the firmware doesn't say.
+-- The radio clock's year (EdgeTX resets it to 2000 when its battery is flat), or false if unknown.
 function M.year()
   local d = getDateTime and getDateTime()
   return d and d.year or false

@@ -6,4 +6,5 @@ return {
   list_batch = 25,    -- folder entries read per call
   header_max = 2048,  -- bytes read to find the CSV header line
   chunk = 256,        -- bytes read per call when searching a log backwards
+  line_max = 2048,    -- a longer log line stops the search (it's held while read)
 }

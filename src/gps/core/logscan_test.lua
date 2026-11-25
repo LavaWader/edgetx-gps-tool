@@ -2,8 +2,7 @@ local scan = require("gps.core.logscan")
 local fix = require("gps.core.fix")
 local csv = require("gps.core.csv")
 
--- A text field the way EdgeTX writes one: sometimes quoted, like the flight
--- mode ("AIR!"). EdgeTX's text values hold no commas or quotes.
+-- A text field as EdgeTX writes one: sometimes quoted ("AIR!"), never holding commas or quotes.
 local function quote(v, rng)
   if rng.int(1, 4) == 1 then return '"' .. v .. '"' end
   return v
@@ -16,10 +15,7 @@ local function random_text(rng)
   return table.concat(b)
 end
 
--- A random log, generated row by row so the expected answer is known without
--- parsing anything: header with the columns in random order, rows whose GPS
--- field is a fix, empty, 0 0 or garbage, quoted text fields,
--- sometimes \r\n line ends, and sometimes a last row still being written.
+-- A random log whose newest valid fix is known as it's written: shuffled columns, any GPS field, a row cut short.
 local function gen_log(rng)
   local names = { "Date", "Time", "GPS", "FM", "1RSS(dB)", "Sats", "Alt(m)", "Alt(m)" }
   for i = #names, 2, -1 do
@@ -70,15 +66,38 @@ local function gen_log(rng)
   return { text = text, chunk = rng.int(1, 80), expected = expected }
 end
 
-local function run(text, chunk, cols)
-  local st = scan.start(#text, chunk)
-  local reads = 0
+-- longest: the longest carry held between reads.
+local function run(text, chunk, cols, line_max)
+  local st = scan.start(#text, chunk, line_max or 1e9)
+  local reads, longest = 0, 0
   while not st.done do
     local off, len = scan.request(st)
     st = scan.feed(st, string.sub(text, off + 1, off + len), cols)
     reads = reads + 1
+    longest = math.max(longest, #st.carry)
   end
-  return st, reads
+  return st, reads, longest
+end
+
+-- Lines up to 10 times line_max long, newline-terminated or not.
+local function gen_long_lines(rng)
+  local line_max = rng.int(4, 40)
+  local lines, longest = {}, 0
+  for i = 1, rng.int(1, 12) do
+    local n = rng.int(0, line_max)
+    if rng.int(1, 3) == 1 then n = rng.int(0, line_max * 10) end
+    lines[i] = string.rep("x", n)
+    longest = math.max(longest, n)
+  end
+  local text = table.concat(lines, "\n")
+  if rng.bool() then text = text .. "\n" end
+  return { text = text, chunk = rng.int(1, 20), line_max = line_max, longest = longest }
+end
+
+local function longest_line(text)
+  local n = 0
+  for line in (text .. "\n"):gmatch("([^\n]*)\n") do n = math.max(n, #line) end
+  return n
 end
 
 return {
@@ -122,6 +141,27 @@ return {
     t.forall(400, gen_log, function(c)
       local cols = csv.header(c.text)
       local st = run(c.text, c.chunk, cols)
+      t.eq(st.found, c.expected)
+      t.eq(st.err, false)
+    end)
+  end },
+
+  { "lines up to 10x line_max: the carry never exceeds it, each byte is read once", function(t)
+    t.forall(400, gen_long_lines, function(c)
+      local st, reads, longest = run(c.text, c.chunk, { gps = 1 }, c.line_max)
+      t.ok(longest <= c.line_max, "carry " .. longest .. " over " .. c.line_max)
+      t.ok(reads <= math.ceil(#c.text / c.chunk), "reads")
+      if st.err then
+        t.eq(st.err, "line_too_long")
+        t.ok(c.longest > c.line_max, "stopped though every line fits")
+      end
+    end)
+  end },
+
+  { "when every line fits line_max, the cap changes nothing", function(t)
+    t.forall(400, gen_log, function(c)
+      local cols = csv.header(c.text)
+      local st = run(c.text, c.chunk, cols, longest_line(c.text))
       t.eq(st.found, c.expected)
       t.eq(st.err, false)
     end)

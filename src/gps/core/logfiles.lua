@@ -19,15 +19,10 @@ local function newer(a, b)
   return a.name > b.name
 end
 
--- The newest CSV files among names fed one at a time, so a folder listing
--- never has to be held whole:
---   local acc = M.newest(max)
---   for name in dir(path) do M.add(acc, name) end
---   M.result(acc)  -- names, newest first, at most max; acc.seen: names fed
--- Files without a date in the name come last. An insertion into the few
--- kept (the radio's Lua has no table.sort). acc is changed in place: it's a
--- fresh accumulator only its caller holds (see GROUNDWORK.md).
+-- An empty list of the newest max CSV names, fed one name at a time so a listing is never held whole.
 function M.newest(max) return { list = {}, max = max, seen = 0 } end
+
+-- Feeds one name, changing acc in place: only its caller holds it (see GROUNDWORK.md).
 
 function M.add(acc, name)
   acc.seen = acc.seen + 1
@@ -39,7 +34,7 @@ function M.add(acc, name)
     if not newer(e, list[k]) then return acc end -- @mutant keep_newest: not newer(e, list[k]) => false
     k = k - 1
   end
-  while k >= 1 and newer(e, list[k]) do
+  while k >= 1 and newer(e, list[k]) do -- insertion: the radio's Lua has no table.sort
     list[k + 1] = list[k]
     k = k - 1
   end
@@ -47,7 +42,7 @@ function M.add(acc, name)
   return acc
 end
 
--- The kept names, newest first.
+-- The kept names, newest first; acc.seen counts every name fed.
 function M.result(acc)
   local out = {}
   for i = 1, #acc.list do out[i] = acc.list[i].name end
