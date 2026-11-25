@@ -5,15 +5,19 @@ local function gen_names(rng)
   local names = {}
   for i = 1, rng.int(0, 30) do
     local kind = rng.int(1, 5)
-    local model = rng.pick({"Quad", "Model01", "Wing-2", "a"})
+    local model = rng.pick({ "Quad", "Model01", "Wing-2", "a" })
     local date = string.format("%04d-%02d-%02d", rng.int(2020, 2027), rng.int(1, 12), rng.int(1, 28))
     if kind <= 2 then
       names[i] = string.format("%s-%s-%02d%02d%02d.csv", model, date, rng.int(0, 23), rng.int(0, 59), rng.int(0, 59))
-    elseif kind == 3 then names[i] = model .. "-" .. date .. ".CSV"
-    elseif kind == 4 then names[i] = model .. rng.int(1, 9) .. ".csv"
-    else names[i] = model .. ".txt" end
+    elseif kind == 3 then
+      names[i] = model .. "-" .. date .. ".CSV"
+    elseif kind == 4 then
+      names[i] = model .. rng.int(1, 9) .. ".csv"
+    else
+      names[i] = model .. ".txt"
+    end
   end
-  return {names = names, max = rng.int(1, 8)}
+  return { names = names, max = rng.int(1, 8) }
 end
 
 local function newest(names, max)
@@ -29,18 +33,18 @@ local function before(a, b)
 end
 
 return {
-  {"names: with time, date only, no date, not CSV", function(t)
+  { "names: with time, date only, no date, not CSV", function(t)
     t.eq(logs.stamp("Quad-2026-11-24-143201.csv"), "20261124143201")
-    t.eq({logname.lines("Quad-2026-11-24-143201.csv")}, {"11-24 14:32:01", "Quad"}, "seconds shown")
+    t.eq({ logname.lines("Quad-2026-11-24-143201.csv") }, { "2026-11-24 14:32:01", "Quad" }, "the year, and seconds")
     t.eq(logs.stamp("My-Quad-2026-11-24.csv"), "20261124")
-    t.eq({logname.lines("My-Quad-2026-11-24.csv")}, {"11-24", "My-Quad"})
+    t.eq({ logname.lines("My-Quad-2026-11-24.csv") }, { "2026-11-24", "My-Quad" })
     t.eq(logs.stamp("notes.csv"), "")
-    t.eq({logname.lines("notes.csv")}, {"notes", ""})
-    t.eq({logname.lines("Quad-2026-11-24-1432.csv")}, {"Quad-2026-11-24-1432", ""}, "odd time: the name as is")
+    t.eq({ logname.lines("notes.csv") }, { "notes", "" })
+    t.eq({ logname.lines("Quad-2026-11-24-1432.csv") }, { "Quad-2026-11-24-1432", "" }, "odd time: the name as is")
     t.eq(logs.stamp("photo.jpg"), nil)
-  end},
+  end },
 
-  {"newest list: only CSVs, newest first, capped, nothing invented, every name counted", function(t)
+  { "newest list: only CSVs, newest first, capped, nothing invented, every name counted", function(t)
     t.forall(400, gen_names, function(c)
       local acc = newest(c.names, c.max)
       local list = logs.result(acc)
@@ -62,5 +66,5 @@ return {
         end
       end
     end)
-  end},
+  end },
 }

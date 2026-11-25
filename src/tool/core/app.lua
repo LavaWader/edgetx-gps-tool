@@ -3,7 +3,12 @@
 -- The SD card isn't touched until it's pressed; then the button gives way
 -- to the newest log files, each with its last position.
 --
---   local s = M.init(cfg, screen_w, screen_h)
+--   local s = M.init(cfg, screen_w, screen_h, year)
+--
+-- year: the radio clock's year when the tool started (false if unknown).
+-- EdgeTX's clock goes back to 2000 when its battery is flat, and new logs are
+-- then dated 2000 too. s.clock_year is that year if it's 2005 or earlier (it
+-- may have run on since), so the list warns before the logs are listed.
 --   s, rejected = M.update(s, msg)
 --
 -- msg is a tick {kind = "tick", key = "enter"|"exit"|"next"|"prev"|false,
@@ -73,9 +78,10 @@ local function reload(s, i)
   return M.next_read(with(s, {entries = M.set(s, i, with(e, {status = "pending", fix = false}))}))
 end
 
-function M.init(cfg, w, h)
+function M.init(cfg, w, h, year)
   return {
     ctx = {cfg = cfg, w = w, h = h},
+    clock_year = (year or 3000) <= 2005 and year, -- @mutant clock_year: <= 2005 => < 2005
     sel = 1, telem = false,
     telem_wait = false,                -- after ENTER on telemetry: show it again from this time
     files = false,                     -- log file names, newest first, once listed

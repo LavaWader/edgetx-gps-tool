@@ -27,15 +27,15 @@ end
 -- Files without a date in the name come last. An insertion into the few
 -- kept (the radio's Lua has no table.sort). acc is changed in place: it's a
 -- fresh accumulator only its caller holds (see GROUNDWORK.md).
-function M.newest(max) return {list = {}, max = max, seen = 0} end
+function M.newest(max) return { list = {}, max = max, seen = 0 } end
 
 function M.add(acc, name)
   acc.seen = acc.seen + 1
   local st = M.stamp(name)
   if not st then return acc end
-  local list, e = acc.list, {name = name, stamp = st}
+  local list, e = acc.list, { name = name, stamp = st }
   local k = #list
-  if k == acc.max then -- full: the oldest drops out, unless this is older still
+  if k == acc.max then                           -- full: the oldest drops out, unless this is older still
     if not newer(e, list[k]) then return acc end -- @mutant keep_newest: not newer(e, list[k]) => false
     k = k - 1
   end

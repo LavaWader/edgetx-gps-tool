@@ -39,6 +39,6 @@ Applied guideline: `groundwork` @ `0ad2b84` (Guide: when to not add layer).
 - **The fake isn't checked against a real radio** (`e2e/fake_edgetx.lua`): `dir`, `fstat`, `io.read`/`io.seek`, drawing, key events, and `getValue` for GPS after the link drops.
 - **Instruction limit per call is unconfirmed;** 10k is a target.
 - **Radio memory budget is unknown.** The Boxer showed "Free mem 56b" after an out-of-memory error, a reading after the failure rather than a budget.
-- **Log order:** comes from the dates in the file names, which come from the radio clock (a sample log showed `2000-01-01`).
+- **Log order:** comes from the dates in the file names, which come from the radio clock (a sample log showed `2000-01-01`). When the clock reads 2005 or earlier at start (`getDateTime()`; it resets to 2000 when its battery goes flat), the list warns about it; logs already dated 2000 aren't flagged.
 - **CSV fields are split at every comma:** EdgeTX's quoted text fields (the flight mode) hold no commas in the logs seen so far. One that did would shift the columns after it, and that row's GPS field wouldn't parse.
 - **Property tests:** no shrinking; the failing input is printed as generated.

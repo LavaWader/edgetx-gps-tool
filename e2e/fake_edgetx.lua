@@ -61,6 +61,10 @@ function M.load(path, opts)
   -- 10 ms steps; each run() call is taken to be 50 ms after the last
   radio.time = 0
   env.getTime = function() return radio.time end
+  -- opts.year = 2000: the clock reset, as when its battery is flat
+  env.getDateTime = function()
+    return {year = opts.year or 2026, mon = 11, day = 25, hour = 18, min = 0, sec = 0}
+  end
   env.getValue = function(id)
     if id == 42 and radio.gps then return {lat = radio.gps.lat, lon = radio.gps.lon} end
     return 0

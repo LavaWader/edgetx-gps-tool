@@ -78,6 +78,7 @@ return {
     t.ok(r.has_text("Telemetry"), "telemetry row")
     t.ok(r.has_text("54.68716, -125.27965"), "live position, 5 decimals")
     t.ok(r.has_text("Show 10 last logs"), "a button for the logs")
+    t.ok(not r.has_text("Warning. Year is 2000"), "the clock is set: no warning")
     r.gps = {lat = -33.856784, lon = 151.215297}
     r.run(nil)
     t.ok(r.has_text("-33.85678, 151.21530"), "follows telemetry")
@@ -105,7 +106,7 @@ return {
       write_log(dir, "Quad-" .. stamp .. ".csv",
         {string.format('2026-01-01,10:00:00.000,-60,"AIR!",4.1,%d.000000 1.000000,9,16.0', i % 80)})
       if not newest or stamp > newest then
-        newest, label = stamp, string.format("1. %02d-%02d %02d:%02d:00", mo, day, hh, mm)
+        newest, label = stamp, string.format("1. 2026-%02d-%02d %02d:%02d:00", mo, day, hh, mm)
       end
     end
     local r = fake.load(tool(t), {logs_dir = dir})
@@ -128,11 +129,11 @@ return {
     r.run(nil)
     r.run("next"); r.run("enter")
     for _ = 1, 30 do r.run("next") end
-    t.ok(r.idle_until("10. 11-19 10:00:00", 50), "ten listed, the tenth newest last")
+    t.ok(r.idle_until("10. 2026-11-19 10:00:00", 50), "ten listed, the tenth newest last")
     t.ok(r.has_text("MyVeryLongQuad1"), "the model name under it")
     t.ok(r.idle_until("-33.85678, 151.21530", 500), "and read")
     t.ok(r.idle_until("-33.85678, 151.21530", 500) and not r.has_text("reading..."), "all read")
-    t.ok(not r.has_text("11. 11-18 10:00:00"), "no eleventh")
+    t.ok(not r.has_text("11. 2026-11-18 10:00:00"), "no eleventh")
     os.execute('rm -rf "' .. dir .. '"')
     budget(t, r, "ten logs")
   end},
@@ -148,7 +149,7 @@ return {
     t.eq(r.run("exit"), 1)
   end},
 
-  {"logs: shown on request, the newest ten", function(t)
+  {"logs: shown on request, the newest ten; a reset clock warned about", function(t)
     local dir = tmpdir()
     for d = 13, 23 do -- the oldest has a different position, and isn't listed
       local gps = "5.000000 6.000000"
@@ -164,29 +165,30 @@ return {
       rows[#rows + 1] = string.format('2026-11-24,09:59:%02d.%d00,0,"!FS!",0.0,,0,0.0', i % 60, i % 10)
     end
     write_log(dir, "Quad-2026-11-24-090000.csv", rows)
-    local r = fake.load(tool(t), {logs_dir = dir})
+    local r = fake.load(tool(t), {logs_dir = dir, year = 2000})
     r.init()
     r.run(nil)
     t.ok(r.has_text("no GPS fix"), "no telemetry")
-    t.ok(not r.has_text("1. 11-24 09:00:00") and r.sd_calls == 0, "no logs until asked")
+    t.ok(r.has_text("Warning. Year is 2000") and r.has_text("RTC battery is low"), "the clock warning, before any log")
+    t.ok(not r.has_text("1. 2026-11-24 09:00:00") and r.sd_calls == 0, "no logs until asked")
     r.run("next"); r.run("enter")
-    t.ok(r.idle_until("1. 11-24 09:00:00", 10), "the newest log, numbered, to the second")
+    t.ok(r.idle_until("1. 2026-11-24 09:00:00", 10), "the newest log, numbered, to the second")
     t.ok(r.has_text("Quad"), "the model on the next line")
-    t.ok(math.floor(r.text_flags("1. 11-24 09:00:00") / r.SMLSIZE) % 2 == 1, "in the small font")
+    t.ok(math.floor(r.text_flags("1. 2026-11-24 09:00:00") / r.SMLSIZE) % 2 == 1, "in the small font")
     t.ok(r.idle_until("-33.85678, 151.21530", 2000), "its newest fix, past the stretch without one")
     for _ = 1, 15 do r.run("next") end
     t.ok(r.idle_until("5.00000, 6.00000", 2000), "the older logs read too")
-    t.ok(r.has_text("10. 11-15 10:00:00"), "the tenth is the last")
+    t.ok(r.has_text("10. 2026-11-15 10:00:00"), "the tenth is the last")
     for _ = 1, 2000 do -- until every log is read
       if #r.parts() == 2 then break end
       r.run(nil)
     end
     t.eq(r.parts(), {"/SCRIPTS/TOOLS/GPStool/ui.lua", "/SCRIPTS/TOOLS/GPStool/uiview.lua"}, "log code freed once reading is done")
-    t.ok(not r.has_text("1.00000, 2.00000") and not r.has_text("11. 11-14 10:00:00"), "the eleventh isn't listed")
+    t.ok(not r.has_text("1.00000, 2.00000") and not r.has_text("11. 2026-11-14 10:00:00"), "the eleventh isn't listed")
     for _ = 1, 15 do r.run("prev") end
     r.run("next")
     r.run("enter")
-    t.ok(r.has_text("1. 11-24 09:00:00") and not r.has_text("-33.85678, 151.21530"), "ENTER on a log: read again")
+    t.ok(r.has_text("1. 2026-11-24 09:00:00") and not r.has_text("-33.85678, 151.21530"), "ENTER on a log: read again")
     t.ok(r.idle_until("-33.85678, 151.21530", 2000), "its position again")
     os.execute('rm -rf "' .. dir .. '"')
     budget(t, r, "logs")

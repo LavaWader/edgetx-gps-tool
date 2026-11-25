@@ -4,6 +4,13 @@ local M = {}
 -- The radio's clock: 10 ms steps since it was switched on.
 function M.now() return getTime() end
 
+-- The year on the radio's date clock (EdgeTX resets it to 2000 when the
+-- clock battery is flat), or false if the firmware doesn't say.
+function M.year()
+  local d = getDateTime and getDateTime()
+  return d and d.year or false
+end
+
 -- EdgeTX key event -> the names the core uses, or false.
 function M.key(event)
   if event == EVT_VIRTUAL_ENTER then return "enter" end

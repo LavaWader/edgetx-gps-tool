@@ -30,7 +30,7 @@ local perform = {
 }
 
 local function init()
-  state = app.init(cfg, LCD_W, LCD_H)
+  state = app.init(cfg, LCD_W, LCD_H, radio.year())
 end
 
 local function run(event)

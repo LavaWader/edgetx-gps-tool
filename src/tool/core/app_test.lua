@@ -106,7 +106,10 @@ local function check(t, s, w, h)
   t.eq(app.needs_listing(s), s.effect ~= false and s.effect.kind == "list", "listing code only while listing")
   t.ok(s.files ~= false or not s.effect or s.effect.kind == "list", "no log opened before the folder is listed")
   t.eq(app.rows(s) > #s.entries, s.files == false, "Show logs until listed, then no button")
+  local inv, lines = 0, 1
+  if s.sel > 1 and s.sel <= #s.entries then lines = 3 end
   for _, o in ipairs(view.ops(s)) do
+    if o.op == "text" and o.inv then inv = inv + 1 end
     if o.op == "text" then
       local cw = view.CHAR_W
       if o.small then cw = view.SMALL_W end
@@ -117,16 +120,18 @@ local function check(t, s, w, h)
       t.ok(o.x >= 0 and o.y >= 0 and o.x + o.w <= w and o.y + o.h <= h, o.op .. " on screen")
     end
   end
+  t.eq(inv, lines, "the selected row on screen, whole")
 end
 
 return {
   {"any sequence of keys, telemetry and I/O results keeps the invariants", function(t)
     local seen = {}
     t.forall(60, function(rng)
-      return {cfg = gen_cfg(rng), env = gen_env(rng), w = rng.pick({128, 212}), steps = rng.int(50, 400)}
+      return {cfg = gen_cfg(rng), env = gen_env(rng), w = rng.pick({128, 212}), steps = rng.int(50, 400),
+              year = rng.pick({2026, 2000, 2005, false})}
     end, function(c)
       local rng = t.rng
-      local s = app.init(c.cfg, c.w, 64)
+      local s = app.init(c.cfg, c.w, 64, c.year)
       t.eq(s.effect, false, "the card isn't touched at start")
       local raw = 0
       local pressed = false
@@ -264,12 +269,34 @@ return {
     local cfg = gen_cfg(t.rng)
     cfg.max_files = 5
     local s = tick(show_logs(app.init(cfg, 128, 64), env), "prev")
-    t.ok(drawn(s, "1. 11-24 09:30:15").small, "date and time, small font")
+    t.ok(drawn(s, "1. 2026-11-24 09:30:15").small, "date and time, small font")
     t.ok(drawn(s, "MyVeryLongQuad1").small, "the whole model name under it")
     t.ok(not drawn(s, "No location").small, "the position line in the normal font")
     s = tick(tick(s, "next"), "next")
     t.ok(drawn(s, "2. AVeryLongFileNameWithoutAnyDa"), "another name: the first 32 characters")
     t.ok(drawn(s, "teInIt"), "and the rest on the next line")
+  end},
+
+  {"radio clock at 2000-2005 (its battery flat): a warning under Logs, from the start", function(t)
+    local cfg = gen_cfg(t.rng)
+    cfg.max_files = 5
+    t.ok(not drawn(app.init(cfg, 128, 64, 2006), "Warning. Year is 2006"), "clock set: no warning")
+    t.ok(not drawn(app.init(cfg, 128, 64, false), "Warning. Year is 2000"), "year unknown: no warning")
+    t.ok(drawn(app.init(cfg, 128, 64, 2005), "Warning. Year is 2005"), "2005 is still too early: its year")
+    local s = app.init(cfg, 128, 64, 2000)
+    local ops = view.ops(s)
+    t.eq(ops[7], {op = "text", x = 0, y = 30, s = "Warning. Year is 2000", inv = false, small = false}, "under Logs")
+    t.eq(ops[8], {op = "text", x = 0, y = 38, s = " RTC battery is low", inv = false, small = false})
+    t.eq(ops[9], {op = "text", x = 0, y = 48, s = "Show 5 last logs", inv = false, small = false}, "then the button")
+    local env = {names = {"Quad-2000-01-01-000107.csv"}, files = {["Quad-2000-01-01-000107.csv"] = "Date,Time,GPS\n"}}
+    s = show_logs(s, env)
+    t.eq(s.sel, 2, "on the log")
+    ops = view.ops(s)
+    t.eq(ops[1], {op = "text", x = 0, y = 0, s = "no GPS fix", inv = false, small = false}, "scrolled 10 px")
+    t.eq(ops[2], {op = "text", x = 0, y = 10, s = "Logs", inv = false, small = false})
+    t.eq(ops[4].s, "Warning. Year is 2000", "the warning still above the log")
+    t.ok(drawn(s, "1. 2000-01-01 00:01:07").inv, "the log, with its year")
+    t.eq(view.ops(tick(s, "prev"))[1].s, "Telemetry", "back at the top")
   end},
 
   {"page: two headings, rows under them; the selected row is an inverted bar; it scrolls", function(t)
@@ -294,10 +321,10 @@ return {
     s = tick(show_logs(s, env), "prev")
     local ops = view.ops(s)
     t.eq(#ops, 10, "one log under the headings, and the next one's first line")
-    t.eq(ops[7], {op = "text", x = 0, y = 30, s = "1. 11-08 12:00:00", inv = false, small = true}, "logs numbered from 1")
+    t.eq(ops[7], {op = "text", x = 0, y = 30, s = "1. 2026-11-08 12:00:00", inv = false, small = true}, "logs numbered from 1")
     t.eq(ops[8], {op = "text", x = 0, y = 38, s = " Quad", inv = false, small = true}, "the model under it")
     t.eq(ops[9], {op = "text", x = 0, y = 46, s = "No location", inv = false, small = false})
-    t.eq(ops[10], {op = "text", x = 0, y = 56, s = "2. 11-07 12:00:00", inv = false, small = true}, "part of the next")
+    t.eq(ops[10], {op = "text", x = 0, y = 56, s = "2. 2026-11-07 12:00:00", inv = false, small = true}, "part of the next")
     s = tick(s, "next")
     ops = view.ops(s)
     t.eq(ops[6], {op = "fill", x = 0, y = 30, w = 128, h = 24}, "a bar behind all three lines")
@@ -306,14 +333,14 @@ return {
     t.eq(s.sel, 5)
     ops = view.ops(s)
     t.eq(#ops, 8, "scrolled: headings gone, a log above the selection, part of one below")
-    t.eq(ops[1], {op = "text", x = 0, y = 0, s = "3. 11-06 12:00:00", inv = false, small = true})
+    t.eq(ops[1], {op = "text", x = 0, y = 0, s = "3. 2026-11-06 12:00:00", inv = false, small = true})
     t.eq(ops[4], {op = "fill", x = 0, y = 26, w = 128, h = 24})
-    t.eq(ops[5].s, "4. 11-05 12:00:00")
+    t.eq(ops[5].s, "4. 2026-11-05 12:00:00")
     t.ok(ops[7].inv)
-    t.eq(ops[8], {op = "text", x = 0, y = 52, s = "5. 11-04 12:00:00", inv = false, small = true}, "the next one's first line")
+    t.eq(ops[8], {op = "text", x = 0, y = 52, s = "5. 2026-11-04 12:00:00", inv = false, small = true}, "the next one's first line")
     s = tick(tick(s, "next"), "next")
     t.eq(s.sel, 6, "stops at the last log")
-    t.ok(drawn(s, "5. 11-04 12:00:00").inv)
+    t.ok(drawn(s, "5. 2026-11-04 12:00:00").inv)
     for _ = 1, 6 do s = tick(s, "prev") end
     t.eq(view.ops(s)[1].s, "Telemetry", "back at the top: the headings again")
   end},

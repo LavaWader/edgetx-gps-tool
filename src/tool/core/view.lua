@@ -7,9 +7,11 @@
 --   Telemetry            heading, a rule under it
 --   54.68716, 25.27965   row 1
 --   Logs                 heading
+--   Warning. Year is 2000  only if the radio clock says 2005 or before (app.lua)
+--    RTC battery is low
 --   Show 10 last logs    the button (max_files), until the logs are listed
---   1. 11-24 09:00:15    a log: date and time, model (small font),
---    Quad                then its position
+--   1. 2026-11-24 09:00:15   a log: date and time, model (small font),
+--    Quad                    then its position
 --   54.68716, 25.27965
 local app = require("tool.core.app")
 
@@ -25,14 +27,19 @@ local coords = require("gps.core.fix").text
 local names = require("gps.core.logname").lines
 
 -- Where things sit on the page (before scrolling). Headings at 0 and 20,
--- telemetry at 10, the button or the logs from 30 (every 26 px: about 2.5
--- on a 64 px screen), the note.
+-- telemetry at 10, the clock warning at 30 if there is one, then the button
+-- or the logs (every 26 px: about 2.5 on a 64 px screen), the note.
 local LOGS = 2 * HEAD + LINE + GAP
 local LOG_H = 3 * LINE
 local ROW = LOG_H + GAP
-local function row_y(i)
+local CLOCK_H = 2 * LINE + GAP
+local function first_row(s)
+  if s.clock_year then return LOGS + CLOCK_H end
+  return LOGS
+end
+local function row_y(s, i)
   if i == 1 then return HEAD end
-  return LOGS + (i - 2) * ROW
+  return first_row(s) + (i - 2) * ROW
 end
 
 -- Height of row i: a log's three lines, or one for telemetry and the button.
@@ -66,13 +73,14 @@ local function row_lines(s, i, chars)
   return {first, " " .. second, line}, 2 -- @mutant small_name: line}, 2 => line}, 0
 end
 
--- Scrolled to the highest place a heading or row starts that still shows
--- the selected row whole: as much as fits above it stays on screen.
+-- Scrolled to the highest place a heading, the warning or a row starts that
+-- still shows the selected row whole: as much as fits above it stays on screen.
 local function offset(s, h)
-  local need = row_y(s.sel) + row_h(s, s.sel) - h
+  local need, top = row_y(s, s.sel) + row_h(s, s.sel) - h, first_row(s)
   if need <= 0 then return 0 end
   if need <= LOGS then return math.ceil(need / HEAD) * HEAD end
-  return LOGS + math.ceil((need - LOGS) / ROW) * ROW
+  if need <= top then return top end
+  return top + math.ceil((need - top) / ROW) * ROW
 end
 
 function M.ops(s)
@@ -93,13 +101,13 @@ function M.ops(s)
       out[#out + 1] = {op = "fill", x = 0, y = y + LINE, w = w, h = 1}
     end
   end
-  -- Only rows on screen get their text made (row false: the note). The row
-  -- after the last whole one shows the lines of it that fit: there's more.
-  local function block(y, bh, i)
+  -- Only rows on screen get their text made (row false: the lines given).
+  -- The row after the last whole one shows the lines of it that fit.
+  local function block(y, bh, i, lines)
     y = y - off
     if y < 0 or y + SMALL_H > h then return end
-    local sel, lines, small = i == s.sel, false, 0
-    if i then lines, small = row_lines(s, i, small_chars) else lines = {s.log_note[1], " " .. s.log_note[2]} end
+    local sel, small = i == s.sel, 0
+    if i then lines, small = row_lines(s, i, small_chars) end
     if sel then out[#out + 1] = {op = "fill", x = 0, y = y, w = w, h = bh} end
     for k = 1, #lines do
       local sm, th = k <= (small or 0), LINE
@@ -110,16 +118,19 @@ function M.ops(s)
     end
   end
   heading(0, "Telemetry")
+  local clock = s.clock_year and {string.format("Warning. Year is %d", s.clock_year), " RTC battery is low"}
   local rows = app.rows(s)
   for i = 1, rows do
     if i == 2 then heading(2 * HEAD, "Logs") end
-    block(row_y(i), row_h(s, i), i)
+    if i == 2 and clock then block(LOGS, CLOCK_H, false, clock) end
+    block(row_y(s, i), row_h(s, i), i)
   end
   if rows == 1 then heading(2 * HEAD, "Logs") end
+  if rows == 1 and clock then block(LOGS, CLOCK_H, false, clock) end
   if s.log_note then
-    local y = LOGS
-    if rows > 1 then y = row_y(rows + 1) end
-    block(y, 2 * LINE, false)
+    local y = first_row(s)
+    if rows > 1 then y = row_y(s, rows + 1) end
+    block(y, 2 * LINE, false, {s.log_note[1], " " .. s.log_note[2]})
   end
   return out
 end

@@ -11,9 +11,10 @@ An EdgeTX tool (SYS → Tools) for black-and-white radios: lists your model's GP
 - **Release:** push a tag `v*` (e.g. `git tag v1.0.0 && git push origin v1.0.0`). `.github/workflows/build.yml` runs every check, including `make mutate` and the unit tests on Lua 5.2, then publishes the release with the zip. Pushes and pull requests get the same checks, and the zip as a run artifact.
 - **Use:**
   - The screen has two headings. *Telemetry* shows the live position. *Logs* has a *Show 10 last logs* button: the SD card isn't read until you press it.
-  - The button lists the ten newest logs (`max_files` in `src/tool/data/config.lua`) (numbered from 1), each as its date and time to the second and its model name (small font), then its last position.
+  - The button lists the ten newest logs (`max_files` in `src/tool/data/config.lua`) (numbered from 1), each as its date (with the year) and time to the second and its model name (small font), then its last position.
   - NEXT/PREV move (stopping at the ends), EXIT closes the tool. ENTER presses the button, or reads the selected row again: a log's file, or telemetry (it shows *reading...* for half a second).
   - When there are no log rows, a note says why (for example *Logs need EdgeTX 2.9+*).
+  - If the radio's clock says 2005 or earlier, *Warning. Year is 2000 / RTC battery is low* (with the clock's year) shows under *Logs* from the start: EdgeTX resets the clock when its battery is flat, and new logs are then dated 2000 and listed out of order.
 - **Logs:** add an *SD Logs* special function (MDL → SPECIAL FUNCTIONS), and set the radio's date and time so the newest log is listed first.
 - **Develop:** `make` runs the lint, unit tests and end-to-end tests against the minified files. It needs `lua5.4`, `luac5.4` and `luamin`. `make mutate` checks that the tests catch the bugs marked in the code.
 - **Radio check:** `tools/probe/PROBE.lua` is a separate tool that shows which Lua APIs a radio's firmware has.

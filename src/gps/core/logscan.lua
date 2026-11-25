@@ -17,8 +17,16 @@ local M = {}
 
 
 function M.start(size, chunk)
-  return {size = size, chunk = chunk, next_end = size, carry = "", tail = true,
-          found = false, done = size <= 0, err = false}
+  return {
+    size = size,
+    chunk = chunk,
+    next_end = size,
+    carry = "",
+    tail = true,
+    found = false,
+    done = size <= 0,
+    err = false
+  }
 end
 
 -- The byte range to read next: [offset, offset + len).
@@ -32,8 +40,16 @@ end
 -- the part not read yet. tail: carry is still the file's unterminated end.
 function M.feed(st, text, cols)
   local off, len = M.request(st)
-  local nxt = {size = st.size, chunk = st.chunk, next_end = off, carry = "", tail = false,
-               found = false, done = false, err = false}
+  local nxt = {
+    size = st.size,
+    chunk = st.chunk,
+    next_end = off,
+    carry = "",
+    tail = false,
+    found = false,
+    done = false,
+    err = false
+  }
   if #text ~= len then
     nxt.done, nxt.err = true, "short_read"
     return nxt
@@ -43,7 +59,7 @@ function M.feed(st, text, cols)
   local first, last = 2, k
   if off == 0 then first = 1 end
   if st.tail then last = k - 1 end -- @mutant drop_partial_tail: last = k - 1 => last = k
-  for i = last, first, -1 do -- @mutant newest_first: for i = last, first, -1 => for i = first, last
+  for i = last, first, -1 do       -- @mutant newest_first: for i = last, first, -1 => for i = first, last
     local f = csv.parse_row(segs[i], cols)
     if f then
       nxt.found, nxt.done = f, true
