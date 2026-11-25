@@ -4,7 +4,7 @@ An EdgeTX tool (SYS → Tools) for black-and-white radios: lists your model's GP
 
 **Status:** passes its headless tests. Log rows need EdgeTX 2.9 or newer (`dir()` and `fstat()` came in 2.9); on older firmware the list says so, and telemetry still works.
 
-- **Install:** run `make` (builds and checks). Copy `dist/SCRIPTS/TOOLS/` into `SCRIPTS/TOOLS/` on the SD card: `GPSQR.lua` and the `GPSQR/` folder beside it, which holds the parts the tool loads as needed.
+- **Install:** run `make` (builds and checks). Copy `dist/SCRIPTS/TOOLS/` into `SCRIPTS/TOOLS/` on the SD card: `GPStool.lua` and the `GPStool/` folder beside it, which holds the parts the tool loads as needed.
 - **Use:**
   - Under the title *GPS positions*, the list shows *Telemetry* and the newest log (numbered from 1), each with its position. *More* adds five older logs.
   - NEXT/PREV move (stopping at the ends), ENTER on *More* adds logs, EXIT closes the tool.

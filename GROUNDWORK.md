@@ -20,7 +20,7 @@ Applied guideline: `groundwork` @ `0ad2b84` (Guide: when to not add layer).
   - Heap peak, garbage included, sampled inside every call: 60 KB. The original QR script peaks at 93 KB on this measure and crashed the radio; the first version of this tool peaked at 188 KB. The glue runs a full garbage collection at the end of every `run()`.
   - Memory to compile each shipped file: 30 KB. The original script, which compiled on the Boxer, measures 36 KB; the one-file tool measured 90 KB and didn't.
 - **Mutation testing:** `-- @mutant id: from => to` markers on core lines, run by `tools/mutate.lua` (`make mutate`).
-- **Deployment:** `tools/bundle.lua` builds `SCRIPTS/TOOLS/GPSQR.lua` plus part files beside it in `SCRIPTS/TOOLS/GPSQR/`, and `make` minifies them with luamin into `dist/`. Test-only modules aren't reachable from the entry point, so they don't ship.
+- **Deployment:** `tools/bundle.lua` builds `SCRIPTS/TOOLS/GPStool.lua` plus part files beside it in `SCRIPTS/TOOLS/GPStool/`, and `make` minifies them with luamin into `dist/`. Test-only modules aren't reachable from the entry point, so they don't ship.
   - The parts are listed in `tools/bundle.lua`: `ui` (the list, always loaded) and `logs` (log reading). A part has several files when one would be too big to compile.
   - A part's file is loaded with `loadScript` when one of its modules is first required. The glue frees `logs` whenever `app.needs_logs(state)` says it isn't needed.
   - Core modules require log code inside functions, not at load time, so the bundle can keep it out of the main file.

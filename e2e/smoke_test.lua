@@ -15,7 +15,7 @@ local MAX_PEAK_KB = 60
 local MAX_COMPILE_KB = 30
 
 local function scripts(t) return t.root .. "/dist/SCRIPTS" end
-local function tool(t) return scripts(t) .. "/TOOLS/GPSQR.lua" end
+local function tool(t) return scripts(t) .. "/TOOLS/GPStool.lua" end
 
 local function write_log(dir, name, rows)
   local f = assert(io.open(dir .. "/" .. name, "wb"))
@@ -82,7 +82,7 @@ return {
     r.gps = nil
     r.run(nil)
     t.ok(r.has_text("no GPS fix"), "fix lost")
-    t.eq(r.parts(), {"/SCRIPTS/TOOLS/GPSQR/ui.lua", "/SCRIPTS/TOOLS/GPSQR/uiview.lua"}, "log code freed")
+    t.eq(r.parts(), {"/SCRIPTS/TOOLS/GPStool/ui.lua", "/SCRIPTS/TOOLS/GPStool/uiview.lua"}, "log code freed")
     t.eq(r.run("exit"), 1, "EXIT ends the tool")
     budget(t, r, "telemetry")
   end},
@@ -115,7 +115,7 @@ return {
     t.ok(r.has_text("1. 11-24 09:00 Quad"), "the newest log only, numbered")
     t.ok(not r.has_text("2. 11-20 10:00 Quad"))
     t.ok(r.idle_until("-33.85678,151.21530", 2000), "its newest fix, past the stretch without one")
-    t.eq(r.parts(), {"/SCRIPTS/TOOLS/GPSQR/ui.lua", "/SCRIPTS/TOOLS/GPSQR/uiview.lua"}, "log code freed once reading is done")
+    t.eq(r.parts(), {"/SCRIPTS/TOOLS/GPStool/ui.lua", "/SCRIPTS/TOOLS/GPStool/uiview.lua"}, "log code freed once reading is done")
     r.run("next"); r.run("next")
     t.ok(r.has_text("More"))
     r.run("enter")
