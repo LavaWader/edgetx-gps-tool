@@ -5,8 +5,8 @@
 -- need it, so the two are never loaded together.
 local function scan() return require("gps.core.logscan") end
 
-local app = require("tool.core.app")
-local with, set, next_read = app.with, app.set, app.next_read
+local queue = require("tool.core.queue")
+local with, set, next_read = queue.with, queue.set, queue.next_read
 
 local M = {}
 
@@ -54,7 +54,7 @@ function M.opened(s, m)
   if not m.size or not m.head then return finish(s, "error", false) end
   local cols = require("gps.core.csv").header(m.head)
   if not cols then return finish(s, "none", false) end
-  return continue_scan(with(s, { cols = cols }), scan().start(m.size, s.ctx.cfg.chunk))
+  return continue_scan(with(s, { cols = cols }), scan().start(m.size, s.ctx.cfg.chunk, s.ctx.cfg.line_max))
 end
 
 function M.chunk(s, m)

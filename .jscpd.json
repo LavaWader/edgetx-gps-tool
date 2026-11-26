@@ -1,8 +1,0 @@
-{
-  "path": ["src"],
-  "format": ["lua"],
-  "ignore": ["**/*_test.lua"],
-  "minTokens": 50,
-  "reporters": ["console"],
-  "exitCode": 1
-}

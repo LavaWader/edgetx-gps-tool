@@ -38,6 +38,9 @@ end
 local COMMENT_MAX = 120
 -- An infra operation's contract lines, which don't count toward it.
 local CONTRACT_KEYS = { idempotent = true, fails = true, undo = true }
+-- A shipped function at least this many instructions long has no copy
+-- elsewhere, renamed or not: luac drops local names, so a copy compiles alike.
+local COPY_MIN = 8
 
 local errors = 0
 local function report(file, msg)
@@ -132,6 +135,8 @@ local files = {}
 for line in p:lines() do files[#files + 1] = line end
 p:close()
 if #files == 0 then report(SRC, "no Lua files found") end
+local graph = {}  -- module -> {file, deps}, requires inside functions included
+local shapes = {} -- every shipped function: {file, line, ops = its opcodes}
 
 for _, file in ipairs(files) do
   local rel = file:sub(#SRC + 2)
@@ -154,8 +159,11 @@ for _, file in ipairs(files) do
 
   -- 2. require: literal module names only, pointing the allowed direction.
   local literal = 0
+  local deps = {}
+  graph[(rel:gsub("%.lua$", ""):gsub("/", "."))] = { file = file, deps = deps }
   for name in code:gmatch('require%s*%(%s*"([%w_%.]+)"%s*%)') do
     literal = literal + 1
+    deps[#deps + 1] = name
     local target = SRC .. "/" .. name:gsub("%.", "/") .. ".lua"
     local f = io.open(target, "rb")
     if not f then report(file, "requires missing module " .. name) else f:close() end
@@ -189,6 +197,22 @@ for _, file in ipairs(files) do
   local listing = lp:read("*a")
   lp:close()
   if not listing:find("main <", 1, true) then report(file, "luac failed: " .. listing) end
+  if not file:match("_test%.lua$") then
+    local fn
+    for line in listing:gmatch("[^\n]+") do
+      local kind, at = line:match("^(%a+) <[^:]*:(%d+),%d+>")
+      if kind then
+        fn = nil
+        if kind == "function" then
+          fn = { file = file, line = at, ops = {} }
+          shapes[#shapes + 1] = fn
+        end
+      elseif fn then
+        local op = line:match("^%s*%d+%s+%[%d+%]%s+(%u+)")
+        if op then fn.ops[#fn.ops + 1] = op end
+      end
+    end
+  end
   for line in listing:gmatch("[^\n]+") do
     local lineno, op, rest = line:match("^%s*%d+%s+%[(%d+)%]%s+(%u+)%s*(.*)$")
     if op then
@@ -211,6 +235,44 @@ for _, file in ipairs(files) do
     end
   end
 end
+
+-- 7. Copied functions: the same opcodes in the same order, operands ignored.
+local first_of = {}
+for _, fn in ipairs(shapes) do
+  if #fn.ops >= COPY_MIN then
+    local key = table.concat(fn.ops, " ")
+    local first = first_of[key]
+    if first then
+      report(fn.file, "line " .. fn.line .. ": a copy of the function at " .. first.file .. ":" .. first.line)
+    else
+      first_of[key] = fn
+    end
+  end
+end
+
+-- 6. No require cycles, even through requires inside functions.
+local state = {} -- module -> "open" while on the path, "done" after
+local function visit(name, path)
+  if state[name] == "done" or not graph[name] then return end
+  if state[name] == "open" then
+    local from = 1
+    while path[from] ~= name do from = from + 1 end
+    local cycle = {}
+    for k = from, #path do cycle[#cycle + 1] = path[k] end
+    cycle[#cycle + 1] = name
+    report(graph[name].file, "require cycle: " .. table.concat(cycle, " -> "))
+    return
+  end
+  state[name] = "open"
+  path[#path + 1] = name
+  for _, dep in ipairs(graph[name].deps) do visit(dep, path) end
+  path[#path] = nil
+  state[name] = "done"
+end
+local names = {}
+for name in pairs(graph) do names[#names + 1] = name end
+table.sort(names)
+for _, name in ipairs(names) do visit(name, {}) end
 
 if errors > 0 then
   print(string.format("lint: %d problem(s)", errors))

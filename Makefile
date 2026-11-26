@@ -1,13 +1,12 @@
 LUA ?= lua5.4
 LUAMIN ?= luamin
-JSCPD ?= jscpd
 LUA52 := $(shell command -v lua5.2 2>/dev/null)
 # The language server's binary itself: it runs a script given to it. (Arch's
 # /usr/bin/lua-language-server is a wrapper that always starts the server.)
 LUALS ?= $(firstword $(wildcard /usr/lib/lua-language-server/bin/lua-language-server) lua-language-server)
 LUA_FILES = $(shell find src e2e tools -name '*.lua' | sort)
 
-.PHONY: all check format format-check lint dupes test dist e2e mutate clean
+.PHONY: all check format format-check lint test dist e2e mutate clean
 
 # `make`: format the code, build the radio file and run every check against it.
 all: format check
@@ -20,14 +19,10 @@ format:
 format-check:
 	$(LUALS) tools/format.lua --check $(CURDIR) $(LUA_FILES)
 
-check: lint dupes test e2e
+check: lint test e2e
 
 lint:
 	$(LUA) tools/lint.lua src
-
-# Copied code in shipped files; the settings are in .jscpd.json.
-dupes:
-	$(JSCPD)
 
 test:
 	$(LUA) tools/test.lua

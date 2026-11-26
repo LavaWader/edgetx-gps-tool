@@ -1,7 +1,8 @@
 {
   "runtime.version": "Lua 5.2",
   "diagnostics.globals": [
-    "lcd", "getValue", "getFieldInfo", "getTime", "dir", "fstat", "model",
+    "lcd", "getValue", "getFieldInfo", "getTime", "getDateTime", "getVersion", "dir", "fstat", "model",
+    "bundle_unload",
     "LCD_W", "LCD_H", "INVERS", "SMLSIZE",
     "EVT_VIRTUAL_ENTER", "EVT_VIRTUAL_EXIT", "EVT_VIRTUAL_NEXT", "EVT_VIRTUAL_PREV"
   ]

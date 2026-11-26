@@ -24,7 +24,7 @@ Applied guideline: `groundwork` @ `8da6afb` (Saga is not a layer anymore).
   - Core and data use only an allowlist of pure globals; no `tostring`, which formats numbers differently on 5.2 and 5.4.
   - Banned: globals the radio lacks (`table`, `_G`) in shipped files; global assignment, 5.3+ operators, `<const>`/`<close>`, `goto` (luamin can't parse it), non-literal `require`.
   - The comment above a function is one sentence of at most `COMMENT_MAX` characters, in every layer (without suppressions there's no budget to go over). A file's first comment block is its header, and infra's `idempotent:`/`fails:`/`undo:` lines don't count.
-- **Duplicates:** jscpd over shipped code, settings in `.jscpd.json`.
+- **Duplicates:** the lint fails on two shipped functions of at least `COPY_MIN` instructions with the same opcodes. luac drops local names, so a renamed copy compiles alike; Lua's clone detectors (jscpd, PMD CPD) only find exact copies. A copy inside a larger function isn't caught.
 - **Formatting:** lua-language-server's formatter (EmmyLuaCodeStyle), the one editors run; `.editorconfig` sets it up.
 - **Type tier:** none; Lua has no static types.
 - **Tests** sit beside the code in their layer (`*_test.lua`), so the lint covers them.

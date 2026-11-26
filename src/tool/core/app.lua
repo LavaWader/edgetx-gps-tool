@@ -27,6 +27,8 @@
 -- required where it's used, never at load time: on the radio it lives in a
 -- file loaded on demand, and M.needs_logs(s) says when.
 local fixes = require("gps.core.fix")
+local queue = require("tool.core.queue")
+local with = queue.with
 
 local M = {}
 
@@ -34,50 +36,11 @@ local M = {}
 -- before the live value again: it's read every call, so it would only flash.
 M.TELEM_WAIT = 50
 
--- A copy of s with changes applied (s itself is never modified).
-local function with(s, changes)
-  local t = {}
-  for k, v in pairs(s) do t[k] = v end
-  for k, v in pairs(changes) do t[k] = v end
-  return t
-end
-M.with = with
-
--- A copy of s.entries with entry i replaced.
-function M.set(s, i, e)
-  local list = {}
-  for k = 1, #s.entries do list[k] = s.entries[k] end
-  list[i] = e
-  return list
-end
-
--- Logs waiting to be read are "pending"; the one being read (one at a time,
--- s.reading) is "reading". This starts the first pending one, unless one is
--- being read already.
--- Here, not with the log code: ENTER on a log needs it, and the log code then
--- loads at the start of the next call (with the I/O), not inside this one.
-function M.next_read(s)
-  if s.reading then return s end
-  for i = 2, #s.entries do
-    local e = s.entries[i]
-    if e.status == "pending" then
-      local path = s.ctx.cfg.log_dir .. "/" .. e.name
-      return with(s, {
-        entries = M.set(s, i, with(e, { status = "reading" })),
-        reading = i,
-        path = path,
-        effect = { kind = "open", path = path, head = s.ctx.cfg.header_max },
-      })
-    end
-  end
-  return with(s, { effect = false })
-end
-
 -- Read log i again (ENTER on it), unless it's waiting or being read already.
 local function reload(s, i)
   local e = s.entries[i]
   if e.status == "reading" or e.status == "pending" then return s end -- @mutant reload_busy: e.status == "reading" or => false and
-  return M.next_read(with(s, { entries = M.set(s, i, with(e, { status = "pending", fix = false })) }))
+  return queue.next_read(with(s, { entries = queue.set(s, i, with(e, { status = "pending", fix = false })) }))
 end
 
 function M.init(cfg, w, h, year)
