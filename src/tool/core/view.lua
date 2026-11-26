@@ -7,8 +7,9 @@
 --   Telemetry            heading, a rule under it
 --   54.68716, 25.27965   row 1
 --   Logs                 heading
---   Warning. Year is 2000  only if the radio clock says 2005 or before (app.lua)
---    RTC battery is low
+--   Warning.             only if the radio clock says 2005 or before
+--     Check Date and RTC battery   (app.lua), in the small font
+--     Log ordering will not work.
 --   Show 10 last logs    the button (max_files), until the logs are listed
 --   1. 2026-11-24 09:00:15   a log: date and time, model (small font),
 --    Quad                    then its position
@@ -32,9 +33,10 @@ local names = require("gps.core.logname").lines
 local LOGS = 2 * HEAD + LINE + GAP
 local LOG_H = 3 * LINE
 local ROW = LOG_H + GAP
-local CLOCK_H = 2 * LINE + GAP
+local CLOCK = { "Warning.", "  Check Date and RTC battery", "  Log ordering will not work." }
+local CLOCK_H = #CLOCK * LINE + GAP
 local function first_row(s)
-  if s.clock_year then return LOGS + CLOCK_H end
+  if s.clock_reset then return LOGS + CLOCK_H end
   return LOGS
 end
 local function row_y(s, i)
@@ -99,10 +101,10 @@ function M.ops(s)
     end
   end
   -- Draws a row on screen (row false: the lines given); one cut by the bottom shows the lines that fit.
-  local function block(y, bh, i, lines)
+  local function block(y, bh, i, lines, small)
     y = y - off
     if y < 0 or y + SMALL_H > h then return end
-    local sel, small = i == s.sel, 0
+    local sel = i == s.sel
     if i then lines, small = row_lines(s, i, small_chars) end
     if sel then out[#out + 1] = { op = "fill", x = 0, y = y, w = w, h = bh } end
     for k = 1, #lines do
@@ -114,15 +116,14 @@ function M.ops(s)
     end
   end
   heading(0, "Telemetry")
-  local clock = s.clock_year and { string.format("Warning. Year is %d", s.clock_year), " RTC battery is low" }
   local rows = app.rows(s)
   for i = 1, rows do
     if i == 2 then heading(2 * HEAD, "Logs") end
-    if i == 2 and clock then block(LOGS, CLOCK_H, false, clock) end
+    if i == 2 and s.clock_reset then block(LOGS, CLOCK_H, false, CLOCK, #CLOCK) end
     block(row_y(s, i), row_h(s, i), i)
   end
   if rows == 1 then heading(2 * HEAD, "Logs") end
-  if rows == 1 and clock then block(LOGS, CLOCK_H, false, clock) end
+  if rows == 1 and s.clock_reset then block(LOGS, CLOCK_H, false, CLOCK, #CLOCK) end
   if s.log_note then
     local y = first_row(s)
     if rows > 1 then y = row_y(s, rows + 1) end

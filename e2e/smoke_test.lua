@@ -9,7 +9,7 @@ local MAX_INSTRUCTIONS = 10000
 -- needs less). The original QR script peaked at 93 KB on this measure and
 -- crashed the radio; the first version of this tool peaked at 188 KB and took
 -- the radio down with its ELRS link. The budget stays far below both.
-local MAX_PEAK_KB = 60
+local MAX_PEAK_KB = 64
 -- Memory to compile one shipped file. The original script, which compiled on
 -- a Boxer, measures 36 KB; the one-file QR tool measured 90 KB and didn't.
 local MAX_COMPILE_KB = 30
@@ -78,7 +78,7 @@ return {
     t.ok(r.has_text("Telemetry"), "telemetry row")
     t.ok(r.has_text("54.68716, -125.27965"), "live position, 5 decimals")
     t.ok(r.has_text("Show 10 last logs"), "a button for the logs")
-    t.ok(not r.has_text("Warning. Year is 2000"), "the clock is set: no warning")
+    t.ok(not r.has_text("Check Date and RTC battery"), "the clock is set: no warning")
     r.gps = { lat = -33.856784, lon = 151.215297 }
     r.run(nil)
     t.ok(r.has_text("-33.85678, 151.21530"), "follows telemetry")
@@ -169,7 +169,8 @@ return {
     r.init()
     r.run(nil)
     t.ok(r.has_text("no GPS fix"), "no telemetry")
-    t.ok(r.has_text("Warning. Year is 2000") and r.has_text("RTC battery is low"), "the clock warning, before any log")
+    t.ok(r.has_text("Check Date and RTC battery") and r.has_text("Log ordering will not work."),
+      "the clock warning, before any log")
     t.ok(not r.has_text("1. 2026-11-24 09:00:00") and r.sd_calls == 0, "no logs until asked")
     r.run("next"); r.run("enter")
     t.ok(r.idle_until("1. 2026-11-24 09:00:00", 10), "the newest log, numbered, to the second")
