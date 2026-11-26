@@ -24,8 +24,7 @@ end
 
 local function continue_scan(s, st)
   if st.found then
-    local f = st.found
-    return finish(s, "found", { lat = f.lat, lon = f.lon }) -- only what's shown: it's kept
+    return finish(s, "found", st.found) -- csv.parse_row built it with fix.new
   end
   if st.err then return finish(s, "error", false) end
   if st.done then return finish(s, "none", false) end

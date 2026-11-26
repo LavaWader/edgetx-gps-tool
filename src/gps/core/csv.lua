@@ -58,7 +58,7 @@ function M.parse_row(line, cols)
   local a, b = string.match(g, "^%s*(%S+)%s+(%S+)%s*$")
   local lat, lon = tonumber(a), tonumber(b)
   if not fix.valid(lat, lon) then return nil end
-  return { lat = lat, lon = lon }
+  return fix.new(lat, lon)
 end
 
 return M

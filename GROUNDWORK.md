@@ -46,3 +46,4 @@ Applied guideline: `groundwork` @ `8da6afb` (Saga is not a layer anymore).
 - **The fake isn't checked against a real radio** (`e2e/fake_edgetx.lua`): file access, drawing, keys, `getValue` after the link drops.
 - **Mutation testing is markers only** (`-- @mutant`, `tools/mutate.lua`): no generated mutants yet.
 - **No doc checks yet:** references, values and length budgets in docs and comments are unchecked.
+- **Shapes aren't checked:** Lua has no types. The fix shape is built only by `fix.new`, but nothing stops a new `{ lat = ..., lon = ... }` written inline.
